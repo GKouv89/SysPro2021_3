@@ -1,3 +1,9 @@
+# My files
+build/*
+monitorServer
+travelMonitorClient
+log_file.*
+
 # Prerequisites
 *.d
 
