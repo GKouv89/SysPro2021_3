@@ -5,6 +5,10 @@
 #include <assert.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <netdb.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 int main(int argc, char *argv[]){
 	if(argc != 13){
@@ -153,6 +157,15 @@ int main(int argc, char *argv[]){
         free(alphabeticOrder[i]);
     }
     free(alphabeticOrder);
+    struct hostent *localAddress = gethostbyname("localhost");
+    if(localAddress == NULL){
+        printf("Parent could not resolve host\n");
+    }else{
+        struct in_addr **addr_list = (struct in_addr **) localAddress->h_addr_list;
+        for(int i = 0; addr_list[i] != NULL; i++){
+            printf("One local host address as seen from parent is: %s\n", inet_ntoa(*addr_list[i]));
+        }
+    }
     for(i = 0; i < numMonitors; i++){
         if(wait(NULL) == -1){
             perror("wait");

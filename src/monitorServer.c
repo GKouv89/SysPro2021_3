@@ -4,6 +4,10 @@
 #include <dirent.h>
 #include <unistd.h>
 #include <assert.h>
+#include <netdb.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 int main(int argc, char *argv[]){
 	int i;
@@ -23,6 +27,15 @@ int main(int argc, char *argv[]){
         // because there are more monitors than children
         for(int i = 11; i < argc; i++){
             fprintf(logfile, "%s\n", argv[i]);
+        }
+    }
+    struct hostent *localAddress = gethostbyname("localhost");
+    if(localAddress == NULL){
+        fprintf(logfile, "Could not resolve host\n");
+    }else{
+        struct in_addr **addr_list = (struct in_addr **) localAddress->h_addr_list;
+        for(int i = 0; addr_list[i] != NULL; i++){
+            fprintf(logfile, "One local host address is: %s\n", inet_ntoa(*addr_list[i]));
         }
     }
     assert(fclose(logfile) == 0);

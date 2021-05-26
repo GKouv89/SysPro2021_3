@@ -1,4 +1,10 @@
 FLAGS = -g -c
+MONITORS = -m 3 
+SOCKBUFSIZE = -b 10
+CYCLICBUFSIZE = -c 10
+BFSIZE = -s 10
+INPUTDIR = -i test_dir_smol
+NUMTHREADS = -t 10
 
 all: travelMonitorClient monitorServer
 
@@ -10,6 +16,9 @@ travelMonitorClient: build/travelMonitorClient.o
 
 monitorServer: build/monitorServer.o
 	gcc -o $@ $^ 
+
+run: 
+	./travelMonitorClient $(MONITORS) $(SOCKBUFSIZE) $(CYCLICBUFSIZE) $(BFSIZE) $(INPUTDIR) $(NUMTHREADS)
 
 clean_log:
 	rm -rf log_file.*
