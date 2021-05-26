@@ -5,20 +5,29 @@ CYCLICBUFSIZE = -c 10
 BFSIZE = -s 10
 INPUTDIR = -i test_dir_smol
 NUMTHREADS = -t 10
+DEBUGOPTS = --trace-children=yes --track-origins=yes
+
+COMMON = build/commonOps.o
 
 all: travelMonitorClient monitorServer
 
 build/%.o: src/%.c
 	gcc $(FLAGS) $< -o $@
 
-travelMonitorClient: build/travelMonitorClient.o  
+travelMonitorClient: build/travelMonitorClient.o $(COMMON) 
 	gcc -o $@ $^
 
-monitorServer: build/monitorServer.o
+monitorServer: build/monitorServer.o $(COMMON)
 	gcc -o $@ $^ 
 
 run: 
 	./travelMonitorClient $(MONITORS) $(SOCKBUFSIZE) $(CYCLICBUFSIZE) $(BFSIZE) $(INPUTDIR) $(NUMTHREADS)
+
+run_debug:
+	valgrind $(DEBUGOPTS) ./travelMonitorClient $(MONITORS) $(SOCKBUFSIZE) $(CYCLICBUFSIZE) $(BFSIZE) $(INPUTDIR) $(NUMTHREADS)
+
+run_find_leaks:
+	valgrind $(DEBUGOPTS) --leak-check=full ./travelMonitorClient $(MONITORS) $(SOCKBUFSIZE) $(CYCLICBUFSIZE) $(BFSIZE) $(INPUTDIR) $(NUMTHREADS)
 
 clean_log:
 	rm -rf log_file.*

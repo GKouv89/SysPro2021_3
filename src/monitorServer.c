@@ -9,6 +9,10 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#include "../include/commonOps.h"
+
+// extern int errno;
+
 int main(int argc, char *argv[]){
 	int i;
     int port = atoi(argv[2]);
@@ -20,32 +24,63 @@ int main(int argc, char *argv[]){
     char *logFileName = malloc(20*sizeof(char));
     sprintf(logFileName, "log_file.%d", mypid);
 	FILE *logfile = fopen(logFileName, "w");
-    fprintf(logfile, "Received: port no. = %d\tnumThreads = %d\tsocketBufferSize = %d\tcyclicBufferSize = %d\tsizeofBloom = %d\n", port, numThreads, socketBufferSize, cyclicBufferSize, sizeOfBloom);
-    fprintf(logfile, "Received paths:\n");
-    if(argc > 11){
-        // This check is necessary because perhaps a few monitors do not have folders to handle
-        // because there are more monitors than children
-        for(int i = 11; i < argc; i++){
-            fprintf(logfile, "%s\n", argv[i]);
-        }
-    }
-    char *hostName = malloc(1024*sizeof(char));
-    if(!gethostname(hostName, 1024)){
-        fprintf(logfile, "Getting host name results in error\n");
-    }else{
-        fprintf(logfile, "Host, as given from gethostname, is: %s\n", hostName);
-    }
-    struct hostent *localAddress = gethostbyname(hostName);
-    free(hostName);
-    if(localAddress == NULL){
-        fprintf(logfile, "Could not resolve host\n");
-    }else{
-        struct in_addr **addr_list = (struct in_addr **) localAddress->h_addr_list;
-        for(int i = 0; addr_list[i] != NULL; i++){
-            fprintf(logfile, "One local host address is: %s\n", inet_ntoa(*addr_list[i]));
-        }
-    }
+    fprintf(logfile, "Port number I received as a child: %d\n", atoi(argv[2]));
     assert(fclose(logfile) == 0);
     free(logFileName);
+
+    struct hostent *localAddress = findIPaddr();
+    struct sockaddr_in server;
+    server.sin_family = AF_INET;
+    memcpy(&server.sin_addr, localAddress->h_addr , localAddress->h_length);    
+    struct sockaddr *serverptr = (struct sockaddr *) &server;
+    server.sin_port = htons(port);
+    int sock_id = socket(AF_INET, SOCK_STREAM, 0);
+    if(sock_id == -1){
+        perror("socket call");
+        close(sock_id);
+        exit(1);
+    }
+    int err = bind(sock_id, serverptr, sizeof(server));
+    if(err == -1){
+        printf("PORT: %d\n", port);
+        perror("bind");
+        close(sock_id);
+        exit(1);
+    }
+    // int sock_id = socket(AF_INET, SOCK_STREAM, 0);
+    // if(sock_id == -1){
+    //     perror("socket call");
+    //     close(sock_id);
+    //     exit(1);
+    // }
+    // struct sockaddr_in server, client;
+    // struct sockaddr *serverptr = (struct sockaddr *) &server;
+    // server.sin_family = AF_INET;
+    // server.sin_port = htons(port);
+    // memcpy(&(server.sin_addr), localAddress->h_addr, localAddress->h_length);
+    // socklen_t serverSize = sizeof(server); 
+    // socklen_t clientSize = sizeof(client);
+    // err = bind(sock_id, serverptr, serverSize);
+    // if(err == -1){
+    //     perror("bind failed");
+    //     close(sock_id);
+    //     exit(1);
+    // }
+    // // Listening to parent...
+    // if(listen(sock_id, 5) < 0){
+    //     perror("listen");
+    //     close(sock_id);
+    //     exit(1);
+    // }
+    // printf("Everything is great and i'm about to accept.\n");
+    // int newsock_id = accept(sock_id, (struct sockaddr *) &client, &clientSize);
+    // if(newsock_id == -1){
+    //     perror("accept");
+    //     close(newsock_id);
+    //     close(sock_id);
+    //     exit(1);
+    // }
+    // close(newsock_id); close(sock_id);
+    close(sock_id);
     return 0;
 }

@@ -10,6 +10,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#include "../include/commonOps.h"
+
 int main(int argc, char *argv[]){
 	if(argc != 13){
 		printf("Usage: ./travelMonitor -m numMonitors -b socketBufferSize -c cyclicBufferSize -s sizeOfBloom -i input_dir -t numThreads\n");
@@ -64,9 +66,11 @@ int main(int argc, char *argv[]){
 					return 1;
 		}    
 	}
-    // WIP: for now, all children take the same port number, 420.
-    constArgs[2] = malloc(4*sizeof(char));
-    strcpy(constArgs[2], "420");
+    // All children take the same port number, 0.
+    // This is so the port can be autoselected.
+    constArgs[2] = malloc(6*sizeof(char));
+    int nextPortAvailable = 50000;
+    sprintf(constArgs[2], "%d", nextPortAvailable);
     // Distributing country names to monitors.
     struct dirent **alphabeticOrder;
 	int subdirCount;
@@ -91,6 +95,7 @@ int main(int argc, char *argv[]){
         countryPaths[i] = malloc(512*sizeof(char));
     }
     int legitimateFolders;
+    int *sock_ids = malloc(numMonitors*sizeof(int));
     for(i = 0; i < numMonitors; i++){
         legitimateFolders = 0;
         for(int j = 0; j < subdirCount; j++){
@@ -103,9 +108,6 @@ int main(int argc, char *argv[]){
                 strcat(countryPaths[countriesLength], "/");
                 strcat(countryPaths[countriesLength], alphabeticOrder[j]->d_name);
                 strcat(countryPaths[countriesLength], "/");
-                printf("This is legitimate folder no. %d\n", legitimateFolders);
-                printf("alphabeticOrder[%d]->d_name = %s\n", j, alphabeticOrder[j]->d_name);
-                printf("Monitor no %d will receive country %s\n", i, countryPaths[countriesLength]);
                 countriesLength++;
                 if(countriesLength == countriesCapacity){
                     countriesCapacity *= 2;
@@ -144,11 +146,25 @@ int main(int argc, char *argv[]){
             children_pids[i] = pid;
         }
         // Freeing countries.
-        for(int j = 11; j < countriesLength; j++){
-            free(argArray[j]);
+        for(int j = 0; j <= countriesLength; j++){
+            free(argArray[j + 11]);
         }
+        temp = realloc(argArray, 11*sizeof(char *));
+        assert(temp != NULL);
+        argArray = temp;
+        nextPortAvailable++;
+        sprintf(argArray[2], "%d", nextPortAvailable);
         countriesLength = 0;
     }
+    for(i = 0; i < numMonitors; i++){
+        if(wait(NULL) == -1){
+            perror("wait");
+            exit(1);
+        }
+    }
+    // for(i = 0; i < numMonitors; i++){
+    //     close(sock_ids[i]);
+    // }
     for(i = 0; i < 11; i++){
         free(argArray[i]);
     }
@@ -157,28 +173,6 @@ int main(int argc, char *argv[]){
         free(alphabeticOrder[i]);
     }
     free(alphabeticOrder);
-    char *hostName = malloc(1024*sizeof(char));
-    if(!gethostname(hostName, 1024)){
-        printf("Getting host name in parent results in error\n");
-    }else{
-        printf("Host, as given from gethostname to parent, is: %s\n", hostName);
-    }
-    struct hostent *localAddress = gethostbyname(hostName);
-    free(hostName);
-    if(localAddress == NULL){
-        printf("Parent could not resolve host\n");
-    }else{
-        struct in_addr **addr_list = (struct in_addr **) localAddress->h_addr_list;
-        for(int i = 0; addr_list[i] != NULL; i++){
-            printf("One local host address as seen from parent is: %s\n", inet_ntoa(*addr_list[i]));
-        }
-    }
-    for(i = 0; i < numMonitors; i++){
-        if(wait(NULL) == -1){
-            perror("wait");
-            exit(1);
-        }
-    }
     free(children_pids);
     for(i = 0; i < 11; i++){
         free(constArgs[i]);
@@ -189,4 +183,5 @@ int main(int argc, char *argv[]){
     free(constArgs);
     free(countryPaths);
     free(input_dir);
+    // free(sock_ids);
 }
