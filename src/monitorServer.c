@@ -29,7 +29,14 @@ int main(int argc, char *argv[]){
             fprintf(logfile, "%s\n", argv[i]);
         }
     }
-    struct hostent *localAddress = gethostbyname("localhost");
+    char *hostName = malloc(1024*sizeof(char));
+    if(!gethostname(hostName, 1024)){
+        fprintf(logfile, "Getting host name results in error\n");
+    }else{
+        fprintf(logfile, "Host, as given from gethostname, is: %s\n", hostName);
+    }
+    struct hostent *localAddress = gethostbyname(hostName);
+    free(hostName);
     if(localAddress == NULL){
         fprintf(logfile, "Could not resolve host\n");
     }else{

@@ -157,7 +157,14 @@ int main(int argc, char *argv[]){
         free(alphabeticOrder[i]);
     }
     free(alphabeticOrder);
-    struct hostent *localAddress = gethostbyname("localhost");
+    char *hostName = malloc(1024*sizeof(char));
+    if(!gethostname(hostName, 1024)){
+        printf("Getting host name in parent results in error\n");
+    }else{
+        printf("Host, as given from gethostname to parent, is: %s\n", hostName);
+    }
+    struct hostent *localAddress = gethostbyname(hostName);
+    free(hostName);
     if(localAddress == NULL){
         printf("Parent could not resolve host\n");
     }else{
