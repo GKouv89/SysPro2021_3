@@ -172,13 +172,18 @@ int main(int argc, char *argv[]){
     }
     char *info_buffer = calloc(512, sizeof(char));
     char *readSockBuffer = malloc(socketBufferSize*sizeof(char));
-    for(i = 0; i < numMonitors; i++){
-        read_content(&info_buffer, &readSockBuffer, sock_ids[i], socketBufferSize);
-        printf("Child no. %d said: %s\n", i, info_buffer);
-        memset(info_buffer, 0, 512*sizeof(char));
-    }
+    char *writeSockBuffer = malloc(socketBufferSize*sizeof(char));
+    // for(i = 0; i < numMonitors; i++){
+    //     read_content(&info_buffer, &readSockBuffer, sock_ids[i], socketBufferSize);
+        // printf("Child no. %d said: %s\n", i, info_buffer);
+        // memset(info_buffer, 0, 512*sizeof(char));
+        // strcpy(info_buffer, "Parent says - 'I agree!'\n");
+        // write_content(info_buffer, &writeSockBuffer, sock_ids[i], socketBufferSize);
+        // memset(info_buffer, 0, 512*sizeof(char));
+    // }
     free(info_buffer);
     free(readSockBuffer);
+    free(writeSockBuffer);
     for(i = 0; i < numMonitors; i++){
         if(wait(NULL) == -1){
             perror("wait");
