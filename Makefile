@@ -7,7 +7,7 @@ INPUTDIR = -i test_dir_smol
 NUMTHREADS = -t 10
 DEBUGOPTS = --trace-children=yes --track-origins=yes
 
-COMMON = build/commonOps.o
+COMMON = build/commonOps.o build/readWriteOps.o
 
 all: travelMonitorClient monitorServer
 

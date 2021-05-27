@@ -10,6 +10,7 @@
 #include <arpa/inet.h>
 
 #include "../include/commonOps.h"
+#include "../include/readWriteOps.h"
 
 // extern int errno;
 
@@ -40,6 +41,11 @@ int main(int argc, char *argv[]){
         close(sock_id);
         exit(1);
     }
+    int value = 1;
+    if(setsockopt(sock_id, SOL_SOCKET, SO_REUSEADDR, &value,sizeof(int)) == -1) {
+        perror("setsockopt");
+        exit(1);
+    }
     int err = bind(sock_id, serverptr, sizeof(server));
     if(err == -1){
         printf("PORT: %d\n", port);
@@ -47,40 +53,29 @@ int main(int argc, char *argv[]){
         close(sock_id);
         exit(1);
     }
-    // int sock_id = socket(AF_INET, SOCK_STREAM, 0);
-    // if(sock_id == -1){
-    //     perror("socket call");
-    //     close(sock_id);
-    //     exit(1);
-    // }
-    // struct sockaddr_in server, client;
-    // struct sockaddr *serverptr = (struct sockaddr *) &server;
-    // server.sin_family = AF_INET;
-    // server.sin_port = htons(port);
-    // memcpy(&(server.sin_addr), localAddress->h_addr, localAddress->h_length);
-    // socklen_t serverSize = sizeof(server); 
-    // socklen_t clientSize = sizeof(client);
-    // err = bind(sock_id, serverptr, serverSize);
-    // if(err == -1){
-    //     perror("bind failed");
-    //     close(sock_id);
-    //     exit(1);
-    // }
-    // // Listening to parent...
-    // if(listen(sock_id, 5) < 0){
-    //     perror("listen");
-    //     close(sock_id);
-    //     exit(1);
-    // }
-    // printf("Everything is great and i'm about to accept.\n");
-    // int newsock_id = accept(sock_id, (struct sockaddr *) &client, &clientSize);
-    // if(newsock_id == -1){
-    //     perror("accept");
-    //     close(newsock_id);
-    //     close(sock_id);
-    //     exit(1);
-    // }
-    // close(newsock_id); close(sock_id);
-    close(sock_id);
+    // Listening to parent...
+    if(listen(sock_id, 5) < 0){
+        perror("listen");
+        close(sock_id);
+        exit(1);
+    }
+    // Accepting connection.
+    struct sockaddr_in client;
+    struct sockaddr *clientptr = (struct sockaddr *) &client;
+    socklen_t clientlen = sizeof(client);
+    int newsock_id;
+    if((newsock_id = accept(sock_id, clientptr, &clientlen)) < 0){
+        perror("accept");
+        close(sock_id);
+        close(newsock_id);
+        exit(1);
+    }
+    printf("Accepted, about to write...\n");
+    char *info_buffer = malloc(512*sizeof(char));
+    strcpy(info_buffer, "Ethan from Maneskin is cute 'cause I said so.");
+    char *writeSockBuffer = malloc(socketBufferSize*sizeof(char));
+    write_content(info_buffer, &writeSockBuffer, newsock_id, socketBufferSize);
+    free(info_buffer); free(writeSockBuffer);
+    close(sock_id); close(newsock_id);
     return 0;
 }

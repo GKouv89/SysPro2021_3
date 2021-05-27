@@ -11,6 +11,7 @@
 #include <arpa/inet.h>
 
 #include "../include/commonOps.h"
+#include "../include/readWriteOps.h"
 
 int main(int argc, char *argv[]){
 	if(argc != 13){
@@ -69,7 +70,7 @@ int main(int argc, char *argv[]){
     // All children take the same port number, 0.
     // This is so the port can be autoselected.
     constArgs[2] = malloc(6*sizeof(char));
-    int nextPortAvailable = 50000;
+    int nextPortAvailable = 7777;
     sprintf(constArgs[2], "%d", nextPortAvailable);
     // Distributing country names to monitors.
     struct dirent **alphabeticOrder;
@@ -96,6 +97,11 @@ int main(int argc, char *argv[]){
     }
     int legitimateFolders;
     int *sock_ids = malloc(numMonitors*sizeof(int));
+    struct sockaddr_in server;
+    struct sockaddr *serverptr = (struct sockaddr *) &server;
+    struct hostent *localAddress = findIPaddr();
+    server.sin_family = AF_INET;
+    memcpy(&server.sin_addr, localAddress->h_addr, localAddress->h_length);
     for(i = 0; i < numMonitors; i++){
         legitimateFolders = 0;
         for(int j = 0; j < subdirCount; j++){
@@ -145,6 +151,14 @@ int main(int argc, char *argv[]){
         }else{
             children_pids[i] = pid;
         }
+        if((sock_ids[i] = socket(AF_INET, SOCK_STREAM, 0)) < 0){
+            perror("socket creation in parent");
+            exit(1);
+        }
+        server.sin_port = htons(nextPortAvailable);
+        /* Initiate connection */
+        while(connect(sock_ids[i], serverptr, sizeof(server)) < 0);
+        printf("Connected to child no: %d\n", i);
         // Freeing countries.
         for(int j = 0; j <= countriesLength; j++){
             free(argArray[j + 11]);
@@ -156,15 +170,24 @@ int main(int argc, char *argv[]){
         sprintf(argArray[2], "%d", nextPortAvailable);
         countriesLength = 0;
     }
+    char *info_buffer = calloc(512, sizeof(char));
+    char *readSockBuffer = malloc(socketBufferSize*sizeof(char));
+    for(i = 0; i < numMonitors; i++){
+        read_content(&info_buffer, &readSockBuffer, sock_ids[i], socketBufferSize);
+        printf("Child no. %d said: %s\n", i, info_buffer);
+        memset(info_buffer, 0, 512*sizeof(char));
+    }
+    free(info_buffer);
+    free(readSockBuffer);
     for(i = 0; i < numMonitors; i++){
         if(wait(NULL) == -1){
             perror("wait");
             exit(1);
         }
     }
-    // for(i = 0; i < numMonitors; i++){
-    //     close(sock_ids[i]);
-    // }
+    for(i = 0; i < numMonitors; i++){
+        close(sock_ids[i]);
+    }
     for(i = 0; i < 11; i++){
         free(argArray[i]);
     }
@@ -183,5 +206,5 @@ int main(int argc, char *argv[]){
     free(constArgs);
     free(countryPaths);
     free(input_dir);
-    // free(sock_ids);
+    free(sock_ids);
 }
