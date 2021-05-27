@@ -71,7 +71,7 @@ void* search_bucketList(bucketList *bl, char *str){
 // after the first reading of the files.                                     //
 ///////////////////////////////////////////////////////////////////////////////
 
-void send_virus_Bloomfilters(bucketList *bl, int readfd, int writefd, int bufferSize){
+void send_virus_Bloomfilters(bucketList *bl, int sock_id, int bufferSize){
    if(bl->type == Virus_List){
       bucketNode *temp = bl->front;
       unsigned int virusNameLength, charsCopied, charsToWrite;
@@ -83,19 +83,19 @@ void send_virus_Bloomfilters(bucketList *bl, int readfd, int writefd, int buffer
       while(temp){
         // First, send virus name length.
         virusNameLength = strlen(((Virus *)temp->content)->name);
-        if(write(writefd, &virusNameLength, sizeof(int)) < 0){
+        if(write(sock_id, &virusNameLength, sizeof(int)) < 0){
             perror("write virus name length");
         }else{
           charsCopied = 0;
           while(charsCopied < virusNameLength){
             strncpy(pipeWriteBuffer, ((Virus *)temp->content)->name + charsCopied, bufferSize);
-            if(write(writefd, pipeWriteBuffer, bufferSize) < 0){
+            if(write(sock_id, pipeWriteBuffer, bufferSize) < 0){
               perror("write virus name chunk");
             }
             charsCopied += bufferSize;
           }
           // Waiting for confirmation that the virus name was received in its entirety.
-          while(read(readfd, pipeReadBuffer, bufferSize) < 0);
+          while(read(sock_id, pipeReadBuffer, bufferSize) < 0);
           bf = ((Virus *)temp->content)->virusBF;
           bytesTransferred = 0;
           bfSize = (bf->size)/8;
@@ -109,11 +109,11 @@ void send_virus_Bloomfilters(bucketList *bl, int readfd, int writefd, int buffer
             }
             memcpy(pipeWriteBuffer, bf->filter + bytesTransferred, charsToWrite*sizeof(char));
             bytesTransferred += charsToWrite;
-            if(write(writefd, pipeWriteBuffer, charsToWrite*sizeof(char)) < 0){
+            if(write(sock_id, pipeWriteBuffer, charsToWrite*sizeof(char)) < 0){
               perror("write bf chunk\n");
             }
           }
-          while(read(readfd, pipeReadBuffer, bufferSize) < 0);
+          while(read(sock_id, pipeReadBuffer, bufferSize) < 0);
         }
         temp = temp->next;
       }

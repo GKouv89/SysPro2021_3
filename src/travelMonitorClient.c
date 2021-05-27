@@ -12,6 +12,10 @@
 
 #include "../include/commonOps.h"
 #include "../include/readWriteOps.h"
+#include "../include/hashmap.h"
+#include "../include/country.h"
+#include "../include/setofbfs.h"
+#include "../include/travelMonitorCommands.h"
 
 int main(int argc, char *argv[]){
 	if(argc != 13){
@@ -102,6 +106,14 @@ int main(int argc, char *argv[]){
     struct hostent *localAddress = findIPaddr();
     server.sin_family = AF_INET;
     memcpy(&server.sin_addr, localAddress->h_addr, localAddress->h_length);
+    // Creating lookup table for countries.
+	// Each virus will correspond to  multiple bloomfilters and we must know which one
+	// is about the country in question. Each country will hold a payload, the result
+	// of the operation (index in alphabeticOrder) % numMonitors + 1. This is the
+	// number of the bloom filter in question.
+	hashMap *country_map;
+	create_map(&country_map, 43, Country_List);
+	int payload;
     for(i = 0; i < numMonitors; i++){
         legitimateFolders = 0;
         for(int j = 0; j < subdirCount; j++){
@@ -109,6 +121,8 @@ int main(int argc, char *argv[]){
                 continue;
             }
             if(legitimateFolders % numMonitors == i){
+                payload = j;
+                insert(country_map, alphabeticOrder[j]->d_name, (Country *) create_country(alphabeticOrder[j]->d_name, payload)); 
                 memset(countryPaths[countriesLength], 0, 512*sizeof(char));
                 strcpy(countryPaths[countriesLength], input_dir);
                 strcat(countryPaths[countriesLength], "/");
@@ -173,14 +187,62 @@ int main(int argc, char *argv[]){
     char *info_buffer = calloc(512, sizeof(char));
     char *readSockBuffer = malloc(socketBufferSize*sizeof(char));
     char *writeSockBuffer = malloc(socketBufferSize*sizeof(char));
-    // for(i = 0; i < numMonitors; i++){
-    //     read_content(&info_buffer, &readSockBuffer, sock_ids[i], socketBufferSize);
-        // printf("Child no. %d said: %s\n", i, info_buffer);
-        // memset(info_buffer, 0, 512*sizeof(char));
-        // strcpy(info_buffer, "Parent says - 'I agree!'\n");
-        // write_content(info_buffer, &writeSockBuffer, sock_ids[i], socketBufferSize);
-        // memset(info_buffer, 0, 512*sizeof(char));
-    // }
+    
+    // Creating hashMap of sets of bloomfilters.
+	hashMap *setOfBFs_map;
+	create_map(&setOfBFs_map, 3, BFLookup_List);
+	setofbloomfilters *curr_set;
+	// This array shows which monitors we have YET to receive
+	// bloomfilters from. When we receive the bloom filters of one monitor,
+	// the respective element in this array takes the value zero.
+	int *read_bloom_descs = malloc(numMonitors*sizeof(int));
+    fd_set rd;
+	FD_ZERO(&rd);
+    int max = 0;
+	for(i = 0; i < numMonitors; i++){
+		FD_SET(sock_ids[i], &rd);
+		read_bloom_descs[i] = 1;
+        if(sock_ids[i] > max){
+            max = sock_ids[i];
+        }
+    }
+    max++;
+	char *virusName = calloc(255, sizeof(char));
+	for(i = 0; i < numMonitors; ){
+		if(select(max, &rd, NULL, NULL, NULL) == -1){
+			perror("select virus names");
+		}else{
+			// Perhaps more than one file descriptors are ready to send data to parent,
+			// in the case two monitors have roughly the same amount of work to do.
+			for(int k = 0; k < numMonitors; k++){
+				if(read_bloom_descs[k] == 1 && FD_ISSET(sock_ids[k], &rd)){
+					// We will now read from the monitor process no. k
+					receiveBloomFiltersFromChild(setOfBFs_map, sock_ids[k], k, socketBufferSize, numMonitors, sizeOfBloom);
+					// Increasing number of children we have received filters from
+                    printf("Received bloom filters from child no %d.\n", k);
+					i++;
+					// We don't expect any more 'traffic' from this child.
+					read_bloom_descs[k] = 0;
+				}
+			}
+			// After reading from all children that were ready in this rep, we must reinitialize the set of file descs
+			// that we expect 'traffic' from.
+			max = 0;
+			FD_ZERO(&rd);
+			for(int j = 0; j < numMonitors; j++){
+				if(read_bloom_descs[j] == 1){
+					FD_SET(sock_ids[j], &rd);
+					if(sock_ids[j] > max){
+						max = sock_ids[j];
+					}
+				}
+			}
+			max++;			
+		}
+	}
+	free(read_bloom_descs);
+	destroy_map(&setOfBFs_map);    
+    
     free(info_buffer);
     free(readSockBuffer);
     free(writeSockBuffer);
@@ -208,6 +270,8 @@ int main(int argc, char *argv[]){
     for(i = 0; i < countriesCapacity; i++){
         free(countryPaths[i]);
     }
+    destroy_map(&country_map);
+    free(virusName);
     free(constArgs);
     free(countryPaths);
     free(input_dir);

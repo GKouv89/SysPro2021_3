@@ -48,14 +48,14 @@ int lookup_bf_vaccination(setofbloomfilters *set, int index, unsigned char *str)
     return lookup_in_bloomFilter(set->bfs[index], str);
 }
 
-void read_BF(setofbloomfilters *set, int readfd, int writefd, int index, int bufferSize){
+void read_BF(setofbloomfilters *set, int sock_id, int index, int bufferSize){
     char *pipeReadBuffer = malloc(bufferSize*sizeof(char));
     char pipeWriteBuffer;
     int bytesRead;
     unsigned int bytesParsed = 0;
     int sizeOfBloom = (set->bfs[index]->size)/8;
     while(bytesParsed < sizeOfBloom){
-        if((bytesRead = read(readfd, pipeReadBuffer, bufferSize*sizeof(char))) < 0){
+        if((bytesRead = read(sock_id, pipeReadBuffer, bufferSize*sizeof(char))) < 0){
             // This just means that the child process hasn't written the next chunk yet, but will soon.
             continue;
         }else{
@@ -64,7 +64,7 @@ void read_BF(setofbloomfilters *set, int readfd, int writefd, int index, int buf
         }
     }
     pipeWriteBuffer = '1';
-    if(write(writefd, &pipeWriteBuffer, sizeof(char)) < 0){
+    if(write(sock_id, &pipeWriteBuffer, sizeof(char)) < 0){
         perror("write bf confirmation\n");
     }
     free(pipeReadBuffer);

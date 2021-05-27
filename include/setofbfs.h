@@ -20,6 +20,6 @@ void create_setOfBFs(setofbloomfilters **, char *, int, int);
 int isEqual_setOfBFs(setofbloomfilters *, unsigned char *);
 void add_BFtoSet(setofbloomfilters *set, int);
 int lookup_bf_vaccination(setofbloomfilters *, int, unsigned char *);
-void read_BF(setofbloomfilters *, int, int, int, int);
+void read_BF(setofbloomfilters *, int, int, int);
 void destroy_setOfBFs(setofbloomfilters **);
 #endif

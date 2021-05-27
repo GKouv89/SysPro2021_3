@@ -40,21 +40,21 @@ void* find_node(hashMap *map, unsigned char *key){
 // bloom filter to the parent.                                 //
 /////////////////////////////////////////////////////////////////
 
-void send_bloomFilters(hashMap *map, int readfd, int writefd, int bufferSize){
+void send_bloomFilters(hashMap *map, int sock_id, int bufferSize){
     for(int i = 0; i < map->noOfBuckets; i++){
-      send_virus_Bloomfilters(map->map[i]->bl, readfd, writefd, bufferSize);
+      send_virus_Bloomfilters(map->map[i]->bl, sock_id, bufferSize);
     }
     // No more filters to send
     char *endStr = "END";
     unsigned int charsCopied, endStrLen = 3;
     char *pipeWriteBuffer = malloc(bufferSize*sizeof(char));
-    if(write(writefd, &endStrLen, sizeof(int)) < 0){
+    if(write(sock_id, &endStrLen, sizeof(int)) < 0){
       perror("write END length");
     }else{ 
       charsCopied = 0;
       while(charsCopied < endStrLen){
         strncpy(pipeWriteBuffer, endStr + charsCopied, bufferSize);
-        if(write(writefd, pipeWriteBuffer, bufferSize) < 0){
+        if(write(sock_id, pipeWriteBuffer, bufferSize) < 0){
           perror("write END chunk");
         }
         charsCopied += bufferSize;

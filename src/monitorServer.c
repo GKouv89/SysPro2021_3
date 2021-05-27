@@ -122,7 +122,7 @@ int main(int argc, char *argv[]){
 		closedir(work_dir);
 	}
     printf("Bloom filters calculated\n");
-  	// send_bloomFilters(virus_map, readfd, writefd, bufferSize);
+  	send_bloomFilters(virus_map, newsock_id, socketBufferSize);
     destroy_map(&country_map); destroy_map(&virus_map); destroy_map(&citizen_map);
     free(info_buffer); free(writeSockBuffer); free(readSockBuffer);
     free(full_file_name);
