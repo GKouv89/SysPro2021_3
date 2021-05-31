@@ -3,7 +3,7 @@ MONITORS = -m 3
 SOCKBUFSIZE = -b 10
 CYCLICBUFSIZE = -c 10
 BFSIZE = -s 10
-INPUTDIR = -i test_dir_smol
+INPUTDIR = -i unbalanced_load
 NUMTHREADS = -t 10
 DEBUGOPTS = --trace-children=yes --track-origins=yes
 LINK = -lm
