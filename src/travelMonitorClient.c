@@ -16,6 +16,7 @@
 #include "../include/country.h"
 #include "../include/setofbfs.h"
 #include "../include/travelMonitorCommands.h"
+#include "../include/dateOps.h"
 
 int main(int argc, char *argv[]){
 	if(argc != 13){
@@ -121,7 +122,7 @@ int main(int argc, char *argv[]){
                 continue;
             }
             if(legitimateFolders % numMonitors == i){
-                payload = j;
+                payload = i;
                 insert(country_map, alphabeticOrder[j]->d_name, (Country *) create_country(alphabeticOrder[j]->d_name, payload)); 
                 memset(countryPaths[countriesLength], 0, 512*sizeof(char));
                 strcpy(countryPaths[countriesLength], input_dir);
@@ -241,17 +242,101 @@ int main(int argc, char *argv[]){
 		}
 	}
 	free(read_bloom_descs);
-	destroy_map(&setOfBFs_map);    
+    requests reqs = {0, 0, 0};
+    hashMap *virusRequest_map;
+	create_map(&virusRequest_map, 3, VirusRequest_List);
+	size_t command_length = 1024, actual_length;
+	char *command = malloc(command_length*sizeof(char));
+	char *command_name, *rest;
+	char *dateOfTravel = malloc(12*sizeof(char));
+	char *citizenID = malloc(5*sizeof(char));
+	char *countryName = malloc(255*sizeof(char));
+	char *countryTo = malloc(255*sizeof(char));
+	Country *curr_country;
+	printf("Ready to accept commands.\n");
+	while(1){
+        actual_length = getline(&command, &command_length, stdin);
+        command_name = strtok_r(command, " ", &rest);
+        if(strcmp(command_name, "/travelRequest") == 0){
+            if(sscanf(rest, "%s %s %s %s %s", citizenID, dateOfTravel, countryName, countryTo, virusName) == 5){
+                if(dateFormatValidity(dateOfTravel) == -1){
+                    printf("Invalid travel date format. Try again.\n");
+                    continue;
+                }
+                travelRequest(setOfBFs_map, country_map, virusRequest_map, citizenID, dateOfTravel, countryName, countryTo, virusName, socketBufferSize, sock_ids, &reqs);
+            }else{
+                printf("Bad arguments to /travelRequest. Try again.\n");
+            }
+        }else if(strcmp(command_name, "/exit\n") == 0){
+            // Notifying children to exit...
+            for(i = 0; i < numMonitors; i++){
+                write_content(command_name, &writeSockBuffer, sock_ids[i], socketBufferSize);
+            }
+            for(i = 0; i < numMonitors; i++){
+                if(wait(NULL) == -1){
+                    perror("wait");
+                    exit(1);
+                }
+            }
+            break;
+        // }else if(strcmp(command_name, "/addVaccinationRecords") == 0){
+        //     if(sscanf(rest, "%s", countryName) == 1){
+        //         addVaccinationRecords(country_map, setOfBFs_map, countryName, children_pids, read_file_descs, write_file_descs, socketBufferSize, numMonitors, sizeOfBloom);
+        //     }else{
+        //         printf("Bad arguments to /addVaccinationRecords. Try again.\n");
+        //     }
+        // }else if(strcmp(command_name, "/searchVaccinationStatus") == 0){
+        //     if(sscanf(rest, "%s", citizenID) == 1){
+        //         searchVaccinationStatus(read_file_descs, write_file_descs, numMonitors, socketBufferSize, citizenID);
+        //     }else{
+        //         printf("Bad arguments to /searchVaccinationStatus. Try again.\n");
+        //     }
+        // }else if(strcmp(command_name, "/travelStats") == 0){
+        //     char *date1 = malloc(11*sizeof(char));
+        //     char *date2 = malloc(11*sizeof(char));
+        //     if(sscanf(rest, "%s %s %s %s", virusName, date1, date2, countryTo) == 4){
+        //         if(dateFormatValidity(date1) == -1 || dateFormatValidity(date2) == -1){
+        //             printf("Invalid date format. Try again.\n");
+        //         }else{
+        //             // Checking specifically for countryTo
+        //             travelStats(virusRequest_map, virusName, date1, date2, countryTo, 1);
+        //         }
+        //     }else if(sscanf(rest, "%s %s %s", virusName, date1, date2) == 3){
+        //         if(dateFormatValidity(date1) == -1 || dateFormatValidity(date2) == -1){
+        //             printf("Invalid date format. Try again.\n");
+        //         }else{
+        //             // Checking for all countries
+        //             travelStats(virusRequest_map, virusName, date1, date2, NULL, 0);
+        //         }
+        //     }else{
+        //         printf("Bad arguments to /travelStats. Try again.\n");
+        //     }
+        //     free(date1);
+        //     free(date2);
+        }else{
+            printf("Unknown command. Try again.\n");
+        }
+    }
+    // Making log file.
+    pid_t mypid = getpid();
+    char *logfile = malloc(20*sizeof(char));
+    sprintf(logfile, "log_file.%d", mypid);
+    FILE *log = fopen(logfile, "w");
+    assert(log != NULL);
+    printSubdirectoryNames(country_map, log);
+    fprintf(log, "TOTAL TRAVEL REQUESTS %d\nACCEPTED %d\nREJECTED %d\n", reqs.total, reqs.accepted, reqs.rejected);
+    assert(fclose(log) == 0);
+    free(logfile);    
+
+    free(command);
+    free(dateOfTravel);
+	free(citizenID);
+    free(countryName);
+    free(countryTo);
     
     free(info_buffer);
     free(readSockBuffer);
     free(writeSockBuffer);
-    for(i = 0; i < numMonitors; i++){
-        if(wait(NULL) == -1){
-            perror("wait");
-            exit(1);
-        }
-    }
     for(i = 0; i < numMonitors; i++){
         close(sock_ids[i]);
     }
@@ -270,7 +355,7 @@ int main(int argc, char *argv[]){
     for(i = 0; i < countriesCapacity; i++){
         free(countryPaths[i]);
     }
-    destroy_map(&country_map);
+    destroy_map(&country_map); destroy_map(&setOfBFs_map); destroy_map(&virusRequest_map);
     free(virusName);
     free(constArgs);
     free(countryPaths);

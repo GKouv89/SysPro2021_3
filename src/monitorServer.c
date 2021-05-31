@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <assert.h>
 #include <netdb.h>
+#include <errno.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -14,8 +15,10 @@
 #include "../include/inputparsing.h"
 #include "../include/hashmap.h"
 #include "../include/country.h"
+#include "../include/monitorServerCommands.h"
+#include "../include/requests.h"
 
-// extern int errno;
+extern int errno;
 
 int main(int argc, char *argv[]){
 	int i;
@@ -24,13 +27,6 @@ int main(int argc, char *argv[]){
     int socketBufferSize = atoi(argv[6]);
     int cyclicBufferSize = atoi(argv[8]);
     int sizeOfBloom = atoi(argv[10]);
-    pid_t mypid = getpid();
-    char *logFileName = malloc(20*sizeof(char));
-    sprintf(logFileName, "log_file.%d", mypid);
-	FILE *logfile = fopen(logFileName, "w");
-    fprintf(logfile, "Port number I received as a child: %d\n", atoi(argv[2]));
-    assert(fclose(logfile) == 0);
-    free(logFileName);
 
     struct hostent *localAddress = findIPaddr();
     struct sockaddr_in server;
@@ -96,14 +92,21 @@ int main(int argc, char *argv[]){
 
 	// Read files from subdirectories, create data structures. 
 	char *full_file_name = malloc(512*sizeof(char));
+    char *big_folder_name, *little_folder_name, *rest;
+    char *argument;
 	struct dirent *curr_subdir;
 	FILE *curr_file;
 	Country *country;
 	for(i = 11; i < argc; i++){
 		DIR *work_dir = opendir(argv[i]);
 		curr_subdir = readdir(work_dir);
-		country = create_country(argv[i], -1);
-		insert(country_map, argv[i], country);
+        argument = malloc((strlen(argv[i]) + 1)*sizeof(char));
+        strcpy(argument, argv[i]);
+        big_folder_name = strtok_r(argument, "/", &rest);
+        little_folder_name = strtok_r(NULL, "/", &rest);
+        country = create_country(little_folder_name, -1);
+		insert(country_map, little_folder_name, country);
+        free(argument);
 		while(curr_subdir != NULL){
 			if(strcmp(curr_subdir->d_name, ".") == 0 || strcmp(curr_subdir->d_name, "..") == 0){
 				curr_subdir = readdir(work_dir);
@@ -123,6 +126,81 @@ int main(int argc, char *argv[]){
 	}
     printf("Bloom filters calculated\n");
   	send_bloomFilters(virus_map, newsock_id, socketBufferSize);
+    
+    unsigned int charactersParsed, charactersRead;
+    unsigned int commandLength, charactersCopied, charsToWrite;
+	char *command = calloc(255, sizeof(char));
+	char *command_name;
+	char *citizenID = malloc(5*sizeof(char));
+	char *virusName = malloc(50*sizeof(char));
+	char *countryFrom = malloc(255*sizeof(char));
+    fd_set rd;
+    requests reqs = {0, 0, 0};
+    while(1){
+		FD_ZERO(&rd);
+		FD_SET(newsock_id, &rd);
+		if(select(newsock_id + 1, &rd, NULL, NULL, NULL) < 1 && errno == EINTR){
+			perror("select child while waiting for command");
+		}else{
+			if(read(newsock_id, &commandLength, sizeof(int)) < 0){
+				perror("read request length");
+			}else{
+                memset(command, 0, 255*sizeof(char));
+                charactersParsed = 0;
+                while(charactersParsed < commandLength){
+                    if((charactersRead = read(newsock_id, readSockBuffer, socketBufferSize)) < 0){
+                        continue;
+                    }else{
+                        strncat(command, readSockBuffer, charactersRead*sizeof(char));
+                        charactersParsed += charactersRead;
+                    }
+                }
+                command_name = strtok_r(command, " ", &rest);
+                if(strcmp(command_name, "checkSkiplist") == 0){
+                    if(sscanf(rest, "%s %s %s", citizenID, virusName, countryFrom) == 3){
+                        Country *country = (Country *) find_node(country_map, countryFrom);
+                        Citizen *citizen = (Citizen *) find_node(citizen_map, citizenID);
+                        // One of three error cases
+                        // Citizen ID doesn't exist (at least in this monitor)
+                        // Citizen ID exists but countryFrom is invalid and doesn't
+                        // Citizen ID exists and so does countryFrom, but it is not the
+                        // citizen's actual country!
+                        // If the last one wasn't caught, the checks could go through 
+                        // the bloom filter/skiplist with no problem.
+                        if(country == NULL || citizen == NULL || citizen->country != country){
+                            // Send BAD COUNTRY response to parent.
+                            char *response = calloc(12, sizeof(char));
+                            strcpy(response, "BAD COUNTRY");
+                            write_content(response, &writeSockBuffer, newsock_id, socketBufferSize);
+                            while(read(newsock_id, readSockBuffer, sizeof(char)) < 0);
+                            free(response);
+                        }else{
+                            checkSkiplist(virus_map, citizenID, virusName, socketBufferSize, newsock_id, &reqs);
+                        }
+                    }
+                // }else if(strcmp(command_name, "checkVacc") == 0){
+                //     if(sscanf(rest, "%s", citizenID) == 1){
+                //         checkVacc(citizen_map, virus_map, citizenID, readfd, writefd, bufferSize);
+                //     }
+                }else if(strcmp(command_name, "/exit\n") == 0){
+                    break;
+                }else{
+                    printf("Unknown command in child: %s\n", command_name);
+                }
+			}
+		}
+	}
+    free(command); free(citizenID); free(countryFrom); free(virusName);
+    // Making log file
+    pid_t mypid = getpid();
+    char *logFileName = malloc(20*sizeof(char));
+    sprintf(logFileName, "log_file.%d", mypid);
+	FILE *logfile = fopen(logFileName, "w");
+    printSubdirectoryNames(country_map, logfile);
+    fprintf(logfile, "TOTAL TRAVEL REQUESTS %d\nACCEPTED %d\nREJECTED %d\n", reqs.total, reqs.accepted, reqs.rejected);
+    assert(fclose(logfile) == 0);
+    free(logFileName);
+
     destroy_map(&country_map); destroy_map(&virus_map); destroy_map(&citizen_map);
     free(info_buffer); free(writeSockBuffer); free(readSockBuffer);
     free(full_file_name);

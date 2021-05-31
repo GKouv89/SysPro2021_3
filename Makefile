@@ -10,7 +10,7 @@ LINK = -lm
 
 TRAVELOBJ = build/travelMonitorCommands.o
 COMMON = build/commonOps.o build/readWriteOps.o build/hashmap.o build/bucketlist.o build/requests.o build/virusRequest.o build/country.o build/citizen.o  build/virus.o build/bloomfilter.o build/setofbfs.o build/skiplist.o build/linkedlist.o build/dateOps.o build/readWriteOps.o
-MONITOROBJ = build/inputParsing.o
+MONITOROBJ = build/inputParsing.o build/monitorServerCommands.o
 
 all: travelMonitorClient monitorServer
 
