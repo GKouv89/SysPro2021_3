@@ -16,6 +16,7 @@
 #include "../include/hashmap.h"
 #include "../include/country.h"
 #include "../include/monitorServerCommands.h"
+#include "../include/cyclicBuffer.h"
 #include "../include/requests.h"
 
 extern int errno;
@@ -28,6 +29,34 @@ int main(int argc, char *argv[]){
     int cyclicBufferSize = atoi(argv[8]);
     int sizeOfBloom = atoi(argv[10]);
 
+    // Testing thread synchronization.
+    // After receiving everything in argv, this thread will try to 
+    // put the folder paths initially in the buffer, and let the children read from it. Just that.
+    pthread_t *threads = malloc(numThreads*sizeof(pthread_t));
+
+    cyclicBuffer *cB;
+    create_cyclicBuffer(&cB, cyclicBufferSize);
+    pthread_mutex_t mtx;
+    pthread_cond_t cond_nonempty, cond_nonfull;
+    pthread_mutex_init(&mtx, 0);
+    pthread_cond_init(&cond_nonfull, 0);
+    pthread_cond_init(&cond_nonempty, 0);
+
+    consumerThreadArgs *args = malloc(numThreads*sizeof(consumerThreadArgs));
+    for(int i = 0; i < numThreads; i++){
+        args[i].cB = cB;
+        args[i].mtx = &mtx;
+        args[i].cond_nonfull = &cond_nonfull;
+        args[i].cond_nonempty = &cond_nonempty;
+        args[i].hasThreadFinished = 0;
+    }
+
+    for(int i = 0; i < numThreads; i++){
+        pthread_create(&(threads[i]), NULL, consumer, (consumerThreadArgs *) &args[i]);
+    }
+
+    producer(argv, cB, &cond_nonempty, &cond_nonfull, &mtx);
+    
     struct hostent *localAddress = findIPaddr();
     struct sockaddr_in server;
     server.sin_family = AF_INET;
@@ -190,6 +219,20 @@ int main(int argc, char *argv[]){
 			}
 		}
 	}
+
+    killThreadPool(numThreads, cB, &cond_nonempty, &cond_nonfull, &mtx);
+    
+    for(int i = 0; i < numThreads; i++){
+        pthread_join(threads[i], 0);
+    }
+    free(threads);
+    destroy_cyclicBuffer(&cB);
+    free(args);
+    pthread_cond_destroy(&cond_nonempty);
+    pthread_cond_destroy(&cond_nonfull);
+    pthread_mutex_destroy(&mtx);
+    
+
     free(command); free(citizenID); free(countryFrom); free(virusName);
     // Making log file
     pid_t mypid = getpid();

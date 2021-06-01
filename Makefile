@@ -1,16 +1,16 @@
 FLAGS = -g -c
-MONITORS = -m 3 
+MONITORS = -m 2 
 SOCKBUFSIZE = -b 10
 CYCLICBUFSIZE = -c 10
 BFSIZE = -s 10
-INPUTDIR = -i unbalanced_load
+INPUTDIR = -i test_dir_smol
 NUMTHREADS = -t 10
 DEBUGOPTS = --trace-children=yes --track-origins=yes
-LINK = -lm
+LINK = -lm -lpthread
 
 TRAVELOBJ = build/travelMonitorCommands.o
 COMMON = build/commonOps.o build/readWriteOps.o build/hashmap.o build/bucketlist.o build/requests.o build/virusRequest.o build/country.o build/citizen.o  build/virus.o build/bloomfilter.o build/setofbfs.o build/skiplist.o build/linkedlist.o build/dateOps.o build/readWriteOps.o
-MONITOROBJ = build/inputParsing.o build/monitorServerCommands.o
+MONITOROBJ = build/inputParsing.o build/monitorServerCommands.o build/cyclicBuffer.o
 
 all: travelMonitorClient monitorServer
 
