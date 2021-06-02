@@ -41,7 +41,7 @@ void obtain(cyclicBuffer *cB, pthread_mutex_t *mtx, pthread_cond_t *cond_nonempt
         // printf(">> Found Buffer Empty \n");
         pthread_cond_wait(cond_nonempty, mtx);
     }
-    // printf("Consumed path: %s\n", cB->filePaths[cB->start]);
+    printf("Consumed path: %s\n", cB->filePaths[cB->start]);
     if(strcmp(cB->filePaths[cB->start], "END") == 0){
         *hasThreadFinished = 1;
     }
@@ -51,11 +51,27 @@ void obtain(cyclicBuffer *cB, pthread_mutex_t *mtx, pthread_cond_t *cond_nonempt
 }
 
 void producer(char **argv, cyclicBuffer *cB, pthread_cond_t *cond_nonempty, pthread_cond_t *cond_nonfull, pthread_mutex_t *mtx){
+    DIR *work_dir;
+	struct dirent *curr_subdir;
+    char *full_file_name = malloc(1024*sizeof(char));
     for(int i = 11; argv[i] != NULL; i++){
-        place(cB, argv[i], mtx, cond_nonfull);
-        // printf("producer placed: %s\n", argv[i]);
-        pthread_cond_signal(cond_nonempty);
+        work_dir = opendir(argv[i]);
+		curr_subdir = readdir(work_dir);
+        while(curr_subdir != NULL){
+            if(strcmp(curr_subdir->d_name, ".") == 0 || strcmp(curr_subdir->d_name, "..") == 0){
+				curr_subdir = readdir(work_dir);
+				continue;
+			}
+            strcpy(full_file_name, argv[i]);
+            // strcat(full_file_name, "/");
+            strcat(full_file_name, curr_subdir->d_name);
+            place(cB, full_file_name, mtx, cond_nonfull);
+            pthread_cond_signal(cond_nonempty);
+    		curr_subdir = readdir(work_dir);
+        }
+		closedir(work_dir);
     }
+    free(full_file_name);
 }
 
 void killThreadPool(int numThreads, cyclicBuffer *cB, pthread_cond_t *cond_nonempty, pthread_cond_t *cond_nonfull, pthread_mutex_t *mtx){
