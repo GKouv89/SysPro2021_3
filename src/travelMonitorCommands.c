@@ -140,3 +140,142 @@ void travelRequest(hashMap *setOfBFs_map, hashMap *country_map, hashMap *virusRe
         }
     } 
 }
+
+void searchVaccinationStatus(int *sock_ids, int numMonitors, int bufferSize, char *citizenID){
+  unsigned int commandLength, charsWritten, charsToWrite;
+  char *command = malloc(15*sizeof(char));
+  char *pipeWriteBuffer = malloc(bufferSize*sizeof(char));
+  char confirmation;
+  // Sending a request to ALL monitors
+  sprintf(command, "checkVacc %s", citizenID);
+  commandLength = strlen(command);
+  int i;
+  for(i = 0; i < numMonitors; i++){
+    if(write(sock_ids[i], &commandLength, sizeof(int)) < 0){
+      perror("write checkVacc length");
+    }else{
+      charsWritten = 0;
+      while(charsWritten < commandLength){
+        if(commandLength - charsWritten < bufferSize){
+          charsToWrite = commandLength - charsWritten;
+        }else{
+          charsToWrite = bufferSize;
+        }
+        strncpy(pipeWriteBuffer, command + charsWritten, charsToWrite);
+        if(write(sock_ids[i], pipeWriteBuffer, charsToWrite*sizeof(char)) < 0){
+          perror("write checkVacc command chunk");
+        }else{
+            charsWritten += charsToWrite;
+        }
+      }
+    }
+  }
+
+  // Initializing set of file descriptors. 
+  // The monitor that will actually have the citizen will take longer to respond,
+  // so with select we can have the others that will respond negatively out of the way first.
+  // When the monitor with the citizen is identified, the parent will block until that specific
+  // file descriptor has a new line for the parent to print, until there are no more lines (for this reason, rd_specific is used).
+  fd_set rd, rd_specific;
+  int *valid_read_file_descs = malloc(numMonitors*sizeof(int));
+  int max = 0;
+  FD_ZERO(&rd);
+	for(i = 0; i < numMonitors; i++){
+		FD_SET(sock_ids[i], &rd);
+        valid_read_file_descs[i] = 1;
+        if(sock_ids[i] > max){
+            max = sock_ids[i];
+        }
+	}
+  max++;
+  char charsCopied, charsRead, virusLength, answerLength;
+  char *citizenData = calloc(1024, sizeof(char));
+  char *virus = calloc(255, sizeof(char));
+  char *answer = calloc(255, sizeof(char));
+  char *pipeReadBuffer = malloc(bufferSize*sizeof(char));
+  char *ans = malloc(4*sizeof(char));
+  char *date = malloc(11*sizeof(char));
+  // if a negative answer is received from all monitors,
+  // this remains 0 and the user is notified via the parent.
+  // if not, this gets 1 assigned.
+  int citizenFound = 0;
+  for(i = 0; i < numMonitors; ){
+    if(select(max, &rd, NULL, NULL, NULL) == -1){
+      perror("select checkVacc response");
+    }else{
+      for(int j = 0; j < numMonitors; j++){
+        if(valid_read_file_descs[j] == 1 && FD_ISSET(sock_ids[j], &rd)){
+          read_content(&citizenData, &pipeReadBuffer, sock_ids[j], bufferSize);
+          // Negative answer
+          if(strcmp(citizenData, "NO SUCH CITIZEN") == 0){
+            memset(citizenData, 0, 255*sizeof(char));  
+          }else{
+            printf("%s", citizenData);
+            if(write(sock_ids[j], "1", sizeof(char)) < 0){
+              perror("couldn't confirm reception of citizenData in searchVaccinationStatus");
+            }
+            while(1){
+              read_content(&virus, &pipeReadBuffer, sock_ids[j], bufferSize);
+              // No more viruses the child has info on
+              if(strcmp(virus, "END") == 0){
+                break;
+              }
+              citizenFound = 1;
+              if(write(sock_ids[j], "1", sizeof(char)) < 0){
+                perror("couldn't confirm reception of virus in searchVaccinationStatus");
+              }else{
+                // wish to block only to wait trafic from this specific monitor 
+                FD_ZERO(&rd_specific);
+                FD_SET(sock_ids[j], &rd_specific);
+                if(select(sock_ids[j] + 1, &rd_specific, NULL, NULL, NULL) == -1){
+                  perror("select checkVacc answer reception");
+                }else{
+                  read_content(&answer, &pipeReadBuffer, sock_ids[j], bufferSize);
+                  if(strlen(answer) == 2){
+                    printf("%s NOT YET VACCINATED\n", virus);
+                  }else{
+                    sscanf(answer, "%s %s", ans, date);
+                    printf("%s VACCINATED ON %s\n", virus, date);
+                  }
+                  memset(virus, 0, 255*sizeof(char));
+                  memset(answer, 0, 255*sizeof(char));
+                  memset(citizenData, 0, 1024*sizeof(char));
+                  if(write(sock_ids[j], "1", sizeof(char)) < 0){
+                    perror("couldn't confirm reception of answer in searchVaccinationStatus");
+                  }
+                }
+              }
+            }
+          }
+          valid_read_file_descs[j] = 0;
+          i++;
+        }
+      }
+      // Response will be received from ALL monitors. At most one will have a valid answer.
+      // In any case, we must reset the set of file_descriptors we expect 'traffic' from.     
+      max=0;
+      FD_ZERO(&rd);
+      for(int k = 0; k < numMonitors; k++){
+        if(valid_read_file_descs[k] == 1){
+          FD_SET(sock_ids[k], &rd);
+          if(sock_ids[k] > max){
+            max = sock_ids[k];
+          }
+        }
+      }
+      max++;
+    }
+  }
+  if(citizenFound == 0){
+    printf("No citizen with id %s\n", citizenID);
+  }
+  free(citizenData);
+  free(command);
+  free(pipeWriteBuffer);
+  free(pipeReadBuffer);
+  free(valid_read_file_descs);
+  free(virus);
+  free(answer);
+  free(ans);
+  free(date);
+}

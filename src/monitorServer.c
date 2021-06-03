@@ -225,10 +225,10 @@ int main(int argc, char *argv[]){
                             checkSkiplist(virus_map, citizenID, virusName, socketBufferSize, newsock_id, &reqs);
                         }
                     }
-                // }else if(strcmp(command_name, "checkVacc") == 0){
-                //     if(sscanf(rest, "%s", citizenID) == 1){
-                //         checkVacc(citizen_map, virus_map, citizenID, readfd, writefd, bufferSize);
-                //     }
+                }else if(strcmp(command_name, "checkVacc") == 0){
+                    if(sscanf(rest, "%s", citizenID) == 1){
+                        checkVacc(citizen_map, virus_map, citizenID, newsock_id, socketBufferSize);
+                    }
                 }else if(strcmp(command_name, "/exit\n") == 0){
                     break;
                 }else{

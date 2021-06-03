@@ -166,7 +166,7 @@ void printSubdirNames(bucketList *bl, FILE *fp){
 // An appropriate response is forwarded to the parent.                //
 ////////////////////////////////////////////////////////////////////////
 
-void vacStatus_all(bucketList *bl, unsigned char *citizenID, int readfd, int writefd, int bufferSize){
+void vacStatus_all(bucketList *bl, unsigned char *citizenID, int sock_id, int bufferSize){
   char *pipeWriteBuffer = malloc(bufferSize*sizeof(char));
   char *answer = malloc(255*sizeof(char));
   char confirmation;
@@ -175,15 +175,15 @@ void vacStatus_all(bucketList *bl, unsigned char *citizenID, int readfd, int wri
     listNode *res;
     while(temp){
       res = lookup_in_virus_vaccinated_for_list((Virus *)temp->content, atoi(citizenID));
-      write_content(((Virus *) temp->content)->name, &pipeWriteBuffer, writefd, bufferSize);
-      while(read(readfd, &confirmation, sizeof(char)) < 0);
+      write_content(((Virus *) temp->content)->name, &pipeWriteBuffer, sock_id, bufferSize);
+      while(read(sock_id, &confirmation, sizeof(char)) < 0);
       if(res == NULL){
         sprintf(answer, "NO");
       }else{
         sprintf(answer, "YES %s", res->vaccinationDate);
       }
-      write_content(answer, &pipeWriteBuffer, writefd, bufferSize);
-      while(read(readfd, &confirmation, sizeof(char)) < 0);
+      write_content(answer, &pipeWriteBuffer, sock_id, bufferSize);
+      while(read(sock_id, &confirmation, sizeof(char)) < 0);
       temp = temp->next;
     }
   }

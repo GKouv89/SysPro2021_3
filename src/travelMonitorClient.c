@@ -285,12 +285,12 @@ int main(int argc, char *argv[]){
         //     }else{
         //         printf("Bad arguments to /addVaccinationRecords. Try again.\n");
         //     }
-        // }else if(strcmp(command_name, "/searchVaccinationStatus") == 0){
-        //     if(sscanf(rest, "%s", citizenID) == 1){
-        //         searchVaccinationStatus(read_file_descs, write_file_descs, numMonitors, socketBufferSize, citizenID);
-        //     }else{
-        //         printf("Bad arguments to /searchVaccinationStatus. Try again.\n");
-        //     }
+        }else if(strcmp(command_name, "/searchVaccinationStatus") == 0){
+            if(sscanf(rest, "%s", citizenID) == 1){
+                searchVaccinationStatus(sock_ids, numMonitors, socketBufferSize, citizenID);
+            }else{
+                printf("Bad arguments to /searchVaccinationStatus. Try again.\n");
+            }
         // }else if(strcmp(command_name, "/travelStats") == 0){
         //     char *date1 = malloc(11*sizeof(char));
         //     char *date2 = malloc(11*sizeof(char));

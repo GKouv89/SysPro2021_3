@@ -45,3 +45,24 @@ void checkSkiplist(hashMap *virus_map, char *citizenID, char *virusName, int buf
   free(answer);
   free(writePipeBuffer);
 }
+
+void checkVacc(hashMap *citizen_map, hashMap *virus_map, char *citizenID, int sock_id, int bufferSize){
+  Citizen *citizen = (Citizen *) find_node(citizen_map, citizenID);
+  char *citizenData = calloc(1024, sizeof(char));
+  char *pipeWriteBuffer = malloc(bufferSize*sizeof(char));
+  if(citizen == NULL){
+    strcpy(citizenData, "NO SUCH CITIZEN");
+    write_content(citizenData, &pipeWriteBuffer, sock_id, bufferSize);
+    free(pipeWriteBuffer);
+    free(citizenData);
+    return;
+  }
+  print_citizen(citizen, &citizenData);
+  write_content(citizenData, &pipeWriteBuffer, sock_id, bufferSize);
+  char confirmation;
+  while(read(sock_id, &confirmation, sizeof(char)) < 0);
+  // All viruses in the virus map check whether the citizen with this ID is in their skiplist and notify the parent.
+  lookup_vacStatus_all(virus_map, citizenID, sock_id, bufferSize);
+  free(citizenData);
+  free(pipeWriteBuffer);
+}

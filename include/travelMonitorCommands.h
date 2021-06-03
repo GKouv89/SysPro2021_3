@@ -5,5 +5,6 @@
 
 void receiveBloomFiltersFromChild(hashMap *, int, int, int, int, int);
 void travelRequest(hashMap *, hashMap *, hashMap *, char *, char *, char *, char *, char *, int, int *, requests *);
+void searchVaccinationStatus(int *, int, int, char *);
 
 #endif

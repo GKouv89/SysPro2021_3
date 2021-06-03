@@ -142,13 +142,13 @@ void printSubdirectoryNames(hashMap *map, FILE *fp){
 // response is forwarded to the parent.                        //
 /////////////////////////////////////////////////////////////////
 
-void lookup_vacStatus_all(hashMap *map, unsigned char *citizenID, int readfd, int writefd, int bufferSize){
+void lookup_vacStatus_all(hashMap *map, unsigned char *citizenID, int sock_id, int bufferSize){
   for(int i = 0; i < map->noOfBuckets; i++){
-    vacStatus_all(map->map[i]->bl, citizenID, readfd, writefd, bufferSize);
+    vacStatus_all(map->map[i]->bl, citizenID, sock_id, bufferSize);
   }
   char *pipeWriteBuffer = malloc(bufferSize*sizeof(char));
   char *endStr = "END";
-  write_content(endStr, &pipeWriteBuffer, writefd, bufferSize);
+  write_content(endStr, &pipeWriteBuffer, sock_id, bufferSize);
   free(pipeWriteBuffer);
 }
 
