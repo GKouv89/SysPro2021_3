@@ -92,16 +92,19 @@ int main(int argc, char *argv[]){
     // Testing thread synchronization.
     // After receiving everything in argv, this thread will try to 
     // put the folder paths initially in the buffer, and let the children read from it. Just that.
+    int filesProduced = 0, filesConsumed = 0;
     pthread_t *threads = malloc(numThreads*sizeof(pthread_t));
 
     cyclicBuffer *cB;
     create_cyclicBuffer(&cB, cyclicBufferSize);
-    pthread_mutex_t mtx, dataStructAccs;
-    pthread_cond_t cond_nonempty, cond_nonfull;
+    pthread_mutex_t mtx, dataStructAccs, filesDone;
+    pthread_cond_t cond_nonempty, cond_nonfull, allfiles_consumed;
     pthread_mutex_init(&mtx, 0);
     pthread_mutex_init(&dataStructAccs, 0);
+    pthread_mutex_init(&filesDone, 0);
     pthread_cond_init(&cond_nonfull, 0);
     pthread_cond_init(&cond_nonempty, 0);
+    pthread_cond_init(&allfiles_consumed, 0);
 
     consumerThreadArgs *args = malloc(numThreads*sizeof(consumerThreadArgs));
     for(int i = 0; i < numThreads; i++){
@@ -109,19 +112,21 @@ int main(int argc, char *argv[]){
         args[i].mtx = &mtx;
         args[i].cond_nonfull = &cond_nonfull;
         args[i].cond_nonempty = &cond_nonempty;
+        args[i].allfiles_consumed = &allfiles_consumed;
         args[i].dataStructAccs = &dataStructAccs;
         args[i].hasThreadFinished = 0;
         args[i].country_map = country_map;
         args[i].citizen_map = citizen_map;
         args[i].virus_map = virus_map;
         args[i].sizeOfBloom = sizeOfBloom;
+        args[i].filesConsumed = &filesConsumed;
     }
 
     for(int i = 0; i < numThreads; i++){
         pthread_create(&(threads[i]), NULL, consumer, (consumerThreadArgs *) &args[i]);
     }
 
-    producer(argv, cB, &cond_nonempty, &cond_nonfull, &mtx);
+    producer(argv, cB, &cond_nonempty, &cond_nonfull, &mtx, &filesProduced);
     
     char *info_buffer = malloc(512*sizeof(char));
     char *writeSockBuffer = malloc(socketBufferSize*sizeof(char));
@@ -161,7 +166,11 @@ int main(int argc, char *argv[]){
 	// 	}
 	// 	closedir(work_dir);
 	// }
-    sleep(20);
+    // sleep(20);
+    printf("Files produced: %d\n", filesProduced);
+    while(filesConsumed != filesProduced){
+        pthread_cond_wait(&allfiles_consumed, &filesDone);
+    }
     printf("Bloom filters calculated\n");
   	send_bloomFilters(virus_map, newsock_id, socketBufferSize);
     
@@ -240,8 +249,9 @@ int main(int argc, char *argv[]){
     pthread_cond_destroy(&cond_nonempty);
     pthread_cond_destroy(&cond_nonfull);
     pthread_mutex_destroy(&mtx);
+    pthread_mutex_destroy(&filesDone);
     pthread_mutex_destroy(&dataStructAccs);
-    
+    pthread_cond_destroy(&allfiles_consumed);
 
     free(command); free(citizenID); free(countryFrom); free(virusName);
     // Making log file
