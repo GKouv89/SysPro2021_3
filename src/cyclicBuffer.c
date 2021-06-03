@@ -4,8 +4,12 @@
 #include <dirent.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <assert.h>
 
 #include "../include/cyclicBuffer.h"
+#include "../include/hashmap.h"
+#include "../include/inputparsing.h"
+#include "../include/country.h"
 
 void create_cyclicBuffer(cyclicBuffer **cB, int cyclicBufferSize){
     *cB = malloc(sizeof(cyclicBuffer));
@@ -35,19 +39,50 @@ void place(cyclicBuffer *cB, char *path, pthread_mutex_t *mtx, pthread_cond_t *c
     pthread_mutex_unlock(mtx);
 }
 
-void obtain(cyclicBuffer *cB, pthread_mutex_t *mtx, pthread_cond_t *cond_nonempty, int *hasThreadFinished){
+void obtain(cyclicBuffer *cB, pthread_mutex_t *mtx, pthread_cond_t *cond_nonempty, int *hasThreadFinished, int sizeOfBloom, pthread_mutex_t *dataStructAccs, hashMap *country_map, hashMap *citizen_map, hashMap *virus_map){
+    FILE *fp;
+    char *file_name = malloc(512*sizeof(char));
     pthread_mutex_lock(mtx);
     while (cB->count <= 0) {
         // printf(">> Found Buffer Empty \n");
         pthread_cond_wait(cond_nonempty, mtx);
     }
-    printf("Consumed path: %s\n", cB->filePaths[cB->start]);
-    if(strcmp(cB->filePaths[cB->start], "END") == 0){
-        *hasThreadFinished = 1;
-    }
+    strcpy(file_name, cB->filePaths[cB->start]);
     cB->start = (cB->start + 1) % cB->cyclicBufferSize;
     cB->count--;
     pthread_mutex_unlock(mtx);
+    if(strcmp(file_name, "END") == 0){
+        *hasThreadFinished = 1;
+        free(file_name);
+        return;
+    }
+    // About to see if it is necessary to add country to hashmap 
+    // to start counting the number of files in that folder.
+    char *argument, *big_folder_name, *little_folder_name, *rest;
+    argument = malloc((strlen(file_name) + 1)*sizeof(char));
+    strcpy(argument, file_name);
+    big_folder_name = strtok_r(argument, "/", &rest);
+    little_folder_name = strtok_r(NULL, "/", &rest);
+    pthread_mutex_lock(dataStructAccs);
+    Country *country;
+    if((country = (Country *) find_node(country_map, little_folder_name)) == NULL){
+        country = create_country(little_folder_name, -1);
+        insert(country_map, little_folder_name, country);
+    }
+    pthread_mutex_unlock(dataStructAccs);
+    free(argument);
+    // Here, inputFileParsing will be called, with a seperate mutex that denotes 
+    // access to the bloom filters and skiplists.
+    fp = fopen(file_name, "r");
+    assert(file_name != NULL);
+    printf("About to parse: %s\n", file_name);
+    inputFileParsing(country_map, citizen_map, virus_map, fp, sizeOfBloom, dataStructAccs);
+    printf("Done parsing: %s\n", file_name);
+    pthread_mutex_lock(dataStructAccs);
+    readCountryFile(country);
+    pthread_mutex_unlock(dataStructAccs);
+    assert(fclose(fp) == 0);
+    free(file_name);
 }
 
 void producer(char **argv, cyclicBuffer *cB, pthread_cond_t *cond_nonempty, pthread_cond_t *cond_nonfull, pthread_mutex_t *mtx){
@@ -85,13 +120,13 @@ void killThreadPool(int numThreads, cyclicBuffer *cB, pthread_cond_t *cond_nonem
 void *consumer(void * ptr){
     consumerThreadArgs *args = ptr;
     while(args->cB->count > 0 || !args->hasThreadFinished){
-        obtain(args->cB, args->mtx, args->cond_nonempty, &(args->hasThreadFinished));
+        obtain(args->cB, args->mtx, args->cond_nonempty, &(args->hasThreadFinished), args->sizeOfBloom, args->dataStructAccs, args->country_map, args->citizen_map, args->virus_map);
         pthread_cond_signal(args->cond_nonfull);
         if(args->hasThreadFinished){
             break;
         }
     }
-    pthread_exit(0);
+    return NULL;
 }
 
 void destroy_cyclicBuffer(cyclicBuffer **cB){

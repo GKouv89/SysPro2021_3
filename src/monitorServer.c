@@ -29,35 +29,7 @@ int main(int argc, char *argv[]){
     int cyclicBufferSize = atoi(argv[8]);
     int sizeOfBloom = atoi(argv[10]);
 
-    // Testing thread synchronization.
-    // After receiving everything in argv, this thread will try to 
-    // put the folder paths initially in the buffer, and let the children read from it. Just that.
-    pthread_t *threads = malloc(numThreads*sizeof(pthread_t));
-
-    cyclicBuffer *cB;
-    create_cyclicBuffer(&cB, cyclicBufferSize);
-    pthread_mutex_t mtx;
-    pthread_cond_t cond_nonempty, cond_nonfull;
-    pthread_mutex_init(&mtx, 0);
-    pthread_cond_init(&cond_nonfull, 0);
-    pthread_cond_init(&cond_nonempty, 0);
-
-    consumerThreadArgs *args = malloc(numThreads*sizeof(consumerThreadArgs));
-    for(int i = 0; i < numThreads; i++){
-        args[i].cB = cB;
-        args[i].mtx = &mtx;
-        args[i].cond_nonfull = &cond_nonfull;
-        args[i].cond_nonempty = &cond_nonempty;
-        args[i].hasThreadFinished = 0;
-    }
-
-    for(int i = 0; i < numThreads; i++){
-        pthread_create(&(threads[i]), NULL, consumer, (consumerThreadArgs *) &args[i]);
-    }
-
-    producer(argv, cB, &cond_nonempty, &cond_nonfull, &mtx);
-    
-    struct hostent *localAddress = findIPaddr();
+        struct hostent *localAddress = findIPaddr();
     struct sockaddr_in server;
     server.sin_family = AF_INET;
     memcpy(&server.sin_addr, localAddress->h_addr , localAddress->h_length);    
@@ -99,10 +71,7 @@ int main(int argc, char *argv[]){
         exit(1);
     }
     printf("Accepted, about to write...\n");
-    char *info_buffer = malloc(512*sizeof(char));
-    char *writeSockBuffer = malloc(socketBufferSize*sizeof(char));
-    char *readSockBuffer = malloc(socketBufferSize*sizeof(char));
-    
+
     ///////////////////////////////////////////////////////////////
 	hashMap *country_map, *virus_map, *citizen_map;
 	// Prime bucket of numbers for all hashmaps
@@ -119,6 +88,45 @@ int main(int argc, char *argv[]){
 	create_map(&citizen_map, 101, Citizen_List);
 	//////////////////////////////////////////////////////////////// 
 
+
+    // Testing thread synchronization.
+    // After receiving everything in argv, this thread will try to 
+    // put the folder paths initially in the buffer, and let the children read from it. Just that.
+    pthread_t *threads = malloc(numThreads*sizeof(pthread_t));
+
+    cyclicBuffer *cB;
+    create_cyclicBuffer(&cB, cyclicBufferSize);
+    pthread_mutex_t mtx, dataStructAccs;
+    pthread_cond_t cond_nonempty, cond_nonfull;
+    pthread_mutex_init(&mtx, 0);
+    pthread_mutex_init(&dataStructAccs, 0);
+    pthread_cond_init(&cond_nonfull, 0);
+    pthread_cond_init(&cond_nonempty, 0);
+
+    consumerThreadArgs *args = malloc(numThreads*sizeof(consumerThreadArgs));
+    for(int i = 0; i < numThreads; i++){
+        args[i].cB = cB;
+        args[i].mtx = &mtx;
+        args[i].cond_nonfull = &cond_nonfull;
+        args[i].cond_nonempty = &cond_nonempty;
+        args[i].dataStructAccs = &dataStructAccs;
+        args[i].hasThreadFinished = 0;
+        args[i].country_map = country_map;
+        args[i].citizen_map = citizen_map;
+        args[i].virus_map = virus_map;
+        args[i].sizeOfBloom = sizeOfBloom;
+    }
+
+    for(int i = 0; i < numThreads; i++){
+        pthread_create(&(threads[i]), NULL, consumer, (consumerThreadArgs *) &args[i]);
+    }
+
+    producer(argv, cB, &cond_nonempty, &cond_nonfull, &mtx);
+    
+    char *info_buffer = malloc(512*sizeof(char));
+    char *writeSockBuffer = malloc(socketBufferSize*sizeof(char));
+    char *readSockBuffer = malloc(socketBufferSize*sizeof(char));
+    
 	// Read files from subdirectories, create data structures. 
 	char *full_file_name = malloc(512*sizeof(char));
     char *big_folder_name, *little_folder_name, *rest;
@@ -126,33 +134,34 @@ int main(int argc, char *argv[]){
 	struct dirent *curr_subdir;
 	FILE *curr_file;
 	Country *country;
-	for(i = 11; i < argc; i++){
-		DIR *work_dir = opendir(argv[i]);
-		curr_subdir = readdir(work_dir);
-        argument = malloc((strlen(argv[i]) + 1)*sizeof(char));
-        strcpy(argument, argv[i]);
-        big_folder_name = strtok_r(argument, "/", &rest);
-        little_folder_name = strtok_r(NULL, "/", &rest);
-        country = create_country(little_folder_name, -1);
-		insert(country_map, little_folder_name, country);
-        free(argument);
-		while(curr_subdir != NULL){
-			if(strcmp(curr_subdir->d_name, ".") == 0 || strcmp(curr_subdir->d_name, "..") == 0){
-				curr_subdir = readdir(work_dir);
-				continue;
-			}
-			strcpy(full_file_name, argv[i]);
-			strcat(full_file_name, "/");
-			strcat(full_file_name, curr_subdir->d_name);
-			curr_file = fopen(full_file_name, "r");
-			assert(curr_file != NULL);
-			inputFileParsing(country_map, citizen_map, virus_map, curr_file, sizeOfBloom);
-			readCountryFile(country);
-			assert(fclose(curr_file) == 0);			
-			curr_subdir = readdir(work_dir);
-		}
-		closedir(work_dir);
-	}
+	// for(i = 11; i < argc; i++){
+	// 	DIR *work_dir = opendir(argv[i]);
+	// 	curr_subdir = readdir(work_dir);
+    //     argument = malloc((strlen(argv[i]) + 1)*sizeof(char));
+    //     strcpy(argument, argv[i]);
+    //     big_folder_name = strtok_r(argument, "/", &rest);
+    //     little_folder_name = strtok_r(NULL, "/", &rest);
+    //     country = create_country(little_folder_name, -1);
+	// 	insert(country_map, little_folder_name, country);
+    //     free(argument);
+	// 	while(curr_subdir != NULL){
+	// 		if(strcmp(curr_subdir->d_name, ".") == 0 || strcmp(curr_subdir->d_name, "..") == 0){
+	// 			curr_subdir = readdir(work_dir);
+	// 			continue;
+	// 		}
+	// 		strcpy(full_file_name, argv[i]);
+	// 		strcat(full_file_name, "/");
+	// 		strcat(full_file_name, curr_subdir->d_name);
+	// 		curr_file = fopen(full_file_name, "r");
+	// 		assert(curr_file != NULL);
+	// 		inputFileParsing(country_map, citizen_map, virus_map, curr_file, sizeOfBloom);
+	// 		readCountryFile(country);
+	// 		assert(fclose(curr_file) == 0);			
+	// 		curr_subdir = readdir(work_dir);
+	// 	}
+	// 	closedir(work_dir);
+	// }
+    sleep(20);
     printf("Bloom filters calculated\n");
   	send_bloomFilters(virus_map, newsock_id, socketBufferSize);
     
@@ -231,6 +240,7 @@ int main(int argc, char *argv[]){
     pthread_cond_destroy(&cond_nonempty);
     pthread_cond_destroy(&cond_nonfull);
     pthread_mutex_destroy(&mtx);
+    pthread_mutex_destroy(&dataStructAccs);
     
 
     free(command); free(citizenID); free(countryFrom); free(virusName);

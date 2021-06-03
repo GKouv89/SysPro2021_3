@@ -1,9 +1,9 @@
 FLAGS = -g -c
-MONITORS = -m 2 
+MONITORS = -m 10
 SOCKBUFSIZE = -b 10
 CYCLICBUFSIZE = -c 10
 BFSIZE = -s 10
-INPUTDIR = -i test_dir_smol
+INPUTDIR = -i testNoDupes
 NUMTHREADS = -t 10
 DEBUGOPTS = --trace-children=yes --track-origins=yes
 LINK = -lm -lpthread
@@ -30,7 +30,7 @@ run_debug:
 	valgrind $(DEBUGOPTS) ./travelMonitorClient $(MONITORS) $(SOCKBUFSIZE) $(CYCLICBUFSIZE) $(BFSIZE) $(INPUTDIR) $(NUMTHREADS)
 
 run_find_leaks:
-	valgrind $(DEBUGOPTS) --leak-check=full ./travelMonitorClient $(MONITORS) $(SOCKBUFSIZE) $(CYCLICBUFSIZE) $(BFSIZE) $(INPUTDIR) $(NUMTHREADS)
+	valgrind $(DEBUGOPTS) --leak-check=full --show-leak-kinds=all ./travelMonitorClient $(MONITORS) $(SOCKBUFSIZE) $(CYCLICBUFSIZE) $(BFSIZE) $(INPUTDIR) $(NUMTHREADS)
 
 clean_log:
 	rm -rf log_file.*

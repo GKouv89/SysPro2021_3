@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
 
 #include "../include/inputparsing.h"
 #include "../include/hashmap.h"
@@ -8,7 +9,7 @@
 #include "../include/citizen.h"
 #include "../include/virus.h"
 
-void inputFileParsing(hashMap *countries, hashMap *citizens, hashMap *viruses, FILE *input, int bloomFilterSize){
+void inputFileParsing(hashMap *countries, hashMap *citizens, hashMap *viruses, FILE *input, int bloomFilterSize, pthread_mutex_t *dataStructAccs){
   size_t line_size = 1024, bytes_read;
   char *line = malloc(line_size*sizeof(char)), *rest;
   char *id, *firstName, *lastName, *country_name, *age, *virus_name, *vacStatus, *date, *temp/* , *dupeVaccinationDate */;
@@ -48,6 +49,7 @@ void inputFileParsing(hashMap *countries, hashMap *citizens, hashMap *viruses, F
       }
     }
     if(!erroneousRecord){
+      pthread_mutex_lock(dataStructAccs);
       country = (Country *) find_node(countries, country_name);
       if(country == NULL){
         // Index here is -1, as we won't use the index field for lookup purposes
@@ -73,12 +75,14 @@ void inputFileParsing(hashMap *countries, hashMap *citizens, hashMap *viruses, F
         virus = create_virus(virus_name, 7850000000, bloomFilterSize, 16);
         insert(viruses, virus_name, virus);        
       }
+      pthread_mutex_unlock(dataStructAccs);
       if(strcmp(vacStatus, "NO") == 0){
         // Making sure there hasn't been a record read that lists the citizen
         // as vaccinated already.
         // If the bloom filter returns 0, there *definitely* hasn't been such a record.
         // If it returns 1, we make sure it isn't a false positive by searching for 
         // the node in the 'vaccinated for' the virus skiplist
+        pthread_mutex_lock(dataStructAccs);
         if(!lookup_in_virus_bloomFilter(virus, id)){
           insert_in_not_vaccinated_for_list(virus, atoi(id), citizen);
         }else if((possibleDupe = lookup_in_virus_vaccinated_for_list(virus, atoi(id))) == NULL){
@@ -87,7 +91,9 @@ void inputFileParsing(hashMap *countries, hashMap *citizens, hashMap *viruses, F
           printf("ERROR IN RECORD %s %s %s %s %s %s %s\n", id, firstName, lastName, country_name, age, virus_name, vacStatus);
           printf("CITIZEN ALREADY VACCINATED ON %s\n\n", possibleDupe->vaccinationDate);          
         }
+        pthread_mutex_unlock(dataStructAccs);
       }else{
+        pthread_mutex_lock(dataStructAccs);
         if(lookup_in_virus_not_vaccinated_for_list(virus, atoi(id))){
           // Ignoring duplicate case where first record for same citizen and virus
           // mentions that the citizen is not vaccinated for the virus
@@ -107,6 +113,7 @@ void inputFileParsing(hashMap *countries, hashMap *citizens, hashMap *viruses, F
         }
         insert_in_virus_bloomFilter(virus, id);
         insert_in_vaccinated_for_list(virus, atoi(id), date, citizen);
+        pthread_mutex_unlock(dataStructAccs);
       }
     }
   }
