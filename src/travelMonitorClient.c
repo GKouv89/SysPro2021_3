@@ -279,12 +279,12 @@ int main(int argc, char *argv[]){
                 }
             }
             break;
-        // }else if(strcmp(command_name, "/addVaccinationRecords") == 0){
-        //     if(sscanf(rest, "%s", countryName) == 1){
-        //         addVaccinationRecords(country_map, setOfBFs_map, countryName, children_pids, read_file_descs, write_file_descs, socketBufferSize, numMonitors, sizeOfBloom);
-        //     }else{
-        //         printf("Bad arguments to /addVaccinationRecords. Try again.\n");
-        //     }
+        }else if(strcmp(command_name, "/addVaccinationRecords") == 0){
+            if(sscanf(rest, "%s", countryName) == 1){
+                addVaccinationRecords(country_map, setOfBFs_map, input_dir, countryName, sock_ids, socketBufferSize, numMonitors, sizeOfBloom);
+            }else{
+                printf("Bad arguments to /addVaccinationRecords. Try again.\n");
+            }
         }else if(strcmp(command_name, "/searchVaccinationStatus") == 0){
             if(sscanf(rest, "%s", citizenID) == 1){
                 searchVaccinationStatus(sock_ids, numMonitors, socketBufferSize, citizenID);

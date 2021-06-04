@@ -112,6 +112,32 @@ void producer(char **argv, cyclicBuffer *cB, pthread_cond_t *cond_nonempty, pthr
     free(full_file_name);
 }
 
+// Used specifically for one folder in addVaccinationRecords
+void addNewRecords(Country *country, char *folderName, cyclicBuffer *cB, pthread_cond_t *cond_nonempty, pthread_cond_t *cond_nonfull, pthread_mutex_t *mtx, int *filesProduced){
+    DIR *work_dir;
+	struct dirent *curr_subdir;
+    work_dir = opendir(folderName);
+    curr_subdir = readdir(work_dir);
+    char *fileName = malloc(1024*sizeof(char));
+    while(1){
+        sprintf(fileName, "%s/%s-%d.txt", folderName, country->name, country->maxFile + 1);
+        FILE *fp = fopen(fileName, "r");
+        if(fp == NULL){
+            // no more files to read
+            break;
+        }
+        place(cB, fileName, mtx, cond_nonfull);
+        printf("Produced: %s\n", fileName);
+        readCountryFile(country);
+        assert(fclose(fp) == 0);
+        (*filesProduced)++;
+        pthread_cond_signal(cond_nonempty);
+        memset(fileName, 0, 1024*sizeof(char));			
+    }
+    closedir(work_dir);    
+    free(fileName);
+}
+
 void killThreadPool(int numThreads, cyclicBuffer *cB, pthread_cond_t *cond_nonempty, pthread_cond_t *cond_nonfull, pthread_mutex_t *mtx){
     char *endStr = "END";
     for(int i = 0; i < numThreads; i++){

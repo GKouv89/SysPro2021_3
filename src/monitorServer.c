@@ -29,7 +29,7 @@ int main(int argc, char *argv[]){
     int cyclicBufferSize = atoi(argv[8]);
     int sizeOfBloom = atoi(argv[10]);
 
-        struct hostent *localAddress = findIPaddr();
+    struct hostent *localAddress = findIPaddr();
     struct sockaddr_in server;
     server.sin_family = AF_INET;
     memcpy(&server.sin_addr, localAddress->h_addr , localAddress->h_length);    
@@ -173,7 +173,10 @@ int main(int argc, char *argv[]){
     }
     printf("Bloom filters calculated\n");
   	send_bloomFilters(virus_map, newsock_id, socketBufferSize);
-    
+    // Resetting counters in case of addition of new records.
+    filesProduced = 0;
+    filesConsumed = 0;
+
     unsigned int charactersParsed, charactersRead;
     unsigned int commandLength, charactersCopied, charsToWrite;
 	char *command = calloc(255, sizeof(char));
@@ -181,6 +184,7 @@ int main(int argc, char *argv[]){
 	char *citizenID = malloc(5*sizeof(char));
 	char *virusName = malloc(50*sizeof(char));
 	char *countryFrom = malloc(255*sizeof(char));
+    char *countryDir = malloc(512*sizeof(char));
     fd_set rd;
     requests reqs = {0, 0, 0};
     while(1){
@@ -205,6 +209,7 @@ int main(int argc, char *argv[]){
                 command_name = strtok_r(command, " ", &rest);
                 if(strcmp(command_name, "checkSkiplist") == 0){
                     if(sscanf(rest, "%s %s %s", citizenID, virusName, countryFrom) == 3){
+                        printf("Was asked to check skiplist by parent\n");
                         Country *country = (Country *) find_node(country_map, countryFrom);
                         Citizen *citizen = (Citizen *) find_node(citizen_map, citizenID);
                         // One of three error cases
@@ -231,6 +236,25 @@ int main(int argc, char *argv[]){
                     }
                 }else if(strcmp(command_name, "/exit\n") == 0){
                     break;
+                }else if(strcmp(command_name, "newVaccs") == 0){
+                    if(sscanf(rest, "%s", countryDir) == 1){
+                        // countryFrom will be of format: input_dir/countryName
+                        // so, we are about to extract the countryName
+                        argument = malloc((strlen(countryDir) + 1)*sizeof(char));
+                        strcpy(argument, countryDir);
+                        big_folder_name = strtok_r(argument, "/", &rest);
+                        little_folder_name = strtok_r(NULL, "/", &rest);
+                        Country *country = (Country *) find_node(country_map, little_folder_name);
+                        addNewRecords(country, countryDir, cB, &cond_nonempty, &cond_nonfull, &mtx, &filesProduced);
+                        printf("Files produced: %d\n", filesProduced);
+                        while(filesConsumed != filesProduced){
+                            pthread_cond_wait(&allfiles_consumed, &filesDone);
+                        }
+                        printf("Bloom filters REcalculated\n");
+                        send_bloomFilters(virus_map, newsock_id, socketBufferSize);
+                        filesProduced = 0;
+                        filesConsumed = 0;
+                    }
                 }else{
                     printf("Unknown command in child: %s\n", command_name);
                 }

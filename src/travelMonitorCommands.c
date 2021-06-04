@@ -279,3 +279,21 @@ void searchVaccinationStatus(int *sock_ids, int numMonitors, int bufferSize, cha
   free(ans);
   free(date);
 }
+
+void addVaccinationRecords(hashMap *country_map, hashMap *setOfBFs_map, char *inputDir, char *countryName, int *sock_ids, int socketBufferSize, int numMonitors, int sizeOfBloom){
+  Country *country = (Country *) find_node(country_map, countryName);
+  if(country == NULL){
+    printf("No such country: %s\n", countryName);
+    return;
+  }
+  // Finding country responsible for countryName
+  int index = country->index;
+  char *command = calloc(512, sizeof(char));
+  sprintf(command, "newVaccs %s/%s", inputDir, countryName);
+  char *pipeWriteBuffer = malloc(socketBufferSize*sizeof(char));
+  write_content(command, &pipeWriteBuffer, sock_ids[index], socketBufferSize);
+  // Now waiting to receive updated bloom filters from child.
+  receiveBloomFiltersFromChild(setOfBFs_map, sock_ids[index], index, socketBufferSize, numMonitors, sizeOfBloom);
+  printf("Ready to accept more requests.\n");
+  free(command);
+}
