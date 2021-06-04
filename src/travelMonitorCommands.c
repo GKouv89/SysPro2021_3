@@ -295,5 +295,5 @@ void addVaccinationRecords(hashMap *country_map, hashMap *setOfBFs_map, char *in
   // Now waiting to receive updated bloom filters from child.
   receiveBloomFiltersFromChild(setOfBFs_map, sock_ids[index], index, socketBufferSize, numMonitors, sizeOfBloom);
   printf("Ready to accept more requests.\n");
-  free(command);
+  free(command); free(pipeWriteBuffer);
 }

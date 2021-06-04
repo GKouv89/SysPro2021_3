@@ -254,6 +254,7 @@ int main(int argc, char *argv[]){
                         send_bloomFilters(virus_map, newsock_id, socketBufferSize);
                         filesProduced = 0;
                         filesConsumed = 0;
+                        free(argument);
                     }
                 }else{
                     printf("Unknown command in child: %s\n", command_name);
@@ -277,7 +278,7 @@ int main(int argc, char *argv[]){
     pthread_mutex_destroy(&dataStructAccs);
     pthread_cond_destroy(&allfiles_consumed);
 
-    free(command); free(citizenID); free(countryFrom); free(virusName);
+    free(command); free(citizenID); free(countryFrom); free(virusName); free(countryDir);
     // Making log file
     pid_t mypid = getpid();
     char *logFileName = malloc(20*sizeof(char));
