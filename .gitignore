@@ -1,5 +1,8 @@
 # My files
 build/*
+testNoDupes/*
+test_dir_smol/*
+unbalanced_load/*
 monitorServer
 travelMonitorClient
 log_file.*

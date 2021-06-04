@@ -139,34 +139,6 @@ int main(int argc, char *argv[]){
 	struct dirent *curr_subdir;
 	FILE *curr_file;
 	Country *country;
-	// for(i = 11; i < argc; i++){
-	// 	DIR *work_dir = opendir(argv[i]);
-	// 	curr_subdir = readdir(work_dir);
-    //     argument = malloc((strlen(argv[i]) + 1)*sizeof(char));
-    //     strcpy(argument, argv[i]);
-    //     big_folder_name = strtok_r(argument, "/", &rest);
-    //     little_folder_name = strtok_r(NULL, "/", &rest);
-    //     country = create_country(little_folder_name, -1);
-	// 	insert(country_map, little_folder_name, country);
-    //     free(argument);
-	// 	while(curr_subdir != NULL){
-	// 		if(strcmp(curr_subdir->d_name, ".") == 0 || strcmp(curr_subdir->d_name, "..") == 0){
-	// 			curr_subdir = readdir(work_dir);
-	// 			continue;
-	// 		}
-	// 		strcpy(full_file_name, argv[i]);
-	// 		strcat(full_file_name, "/");
-	// 		strcat(full_file_name, curr_subdir->d_name);
-	// 		curr_file = fopen(full_file_name, "r");
-	// 		assert(curr_file != NULL);
-	// 		inputFileParsing(country_map, citizen_map, virus_map, curr_file, sizeOfBloom);
-	// 		readCountryFile(country);
-	// 		assert(fclose(curr_file) == 0);			
-	// 		curr_subdir = readdir(work_dir);
-	// 	}
-	// 	closedir(work_dir);
-	// }
-    // sleep(20);
     printf("Files produced: %d\n", filesProduced);
     while(filesConsumed != filesProduced){
         pthread_cond_wait(&allfiles_consumed, &filesDone);
@@ -209,7 +181,6 @@ int main(int argc, char *argv[]){
                 command_name = strtok_r(command, " ", &rest);
                 if(strcmp(command_name, "checkSkiplist") == 0){
                     if(sscanf(rest, "%s %s %s", citizenID, virusName, countryFrom) == 3){
-                        printf("Was asked to check skiplist by parent\n");
                         Country *country = (Country *) find_node(country_map, countryFrom);
                         Citizen *citizen = (Citizen *) find_node(citizen_map, citizenID);
                         // One of three error cases

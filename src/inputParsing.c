@@ -77,40 +77,13 @@ void inputFileParsing(hashMap *countries, hashMap *citizens, hashMap *viruses, F
       }
       pthread_mutex_unlock(dataStructAccs);
       if(strcmp(vacStatus, "NO") == 0){
-        // Making sure there hasn't been a record read that lists the citizen
-        // as vaccinated already.
-        // If the bloom filter returns 0, there *definitely* hasn't been such a record.
-        // If it returns 1, we make sure it isn't a false positive by searching for 
-        // the node in the 'vaccinated for' the virus skiplist
+        // Assuming there are no duplicates, we only need to add this person to the non vaccinated for list
         pthread_mutex_lock(dataStructAccs);
-        if(!lookup_in_virus_bloomFilter(virus, id)){
-          insert_in_not_vaccinated_for_list(virus, atoi(id), citizen);
-        }else if((possibleDupe = lookup_in_virus_vaccinated_for_list(virus, atoi(id))) == NULL){
-          insert_in_not_vaccinated_for_list(virus, atoi(id), citizen);
-        }else{
-          printf("ERROR IN RECORD %s %s %s %s %s %s %s\n", id, firstName, lastName, country_name, age, virus_name, vacStatus);
-          printf("CITIZEN ALREADY VACCINATED ON %s\n\n", possibleDupe->vaccinationDate);          
-        }
+        insert_in_not_vaccinated_for_list(virus, atoi(id), citizen);
         pthread_mutex_unlock(dataStructAccs);
       }else{
         pthread_mutex_lock(dataStructAccs);
-        if(lookup_in_virus_not_vaccinated_for_list(virus, atoi(id))){
-          // Ignoring duplicate case where first record for same citizen and virus
-          // mentions that the citizen is not vaccinated for the virus
-          // and second record says citizen is vaccinated.
-          printf("ERROR IN RECORD %s %s %s %s %s %s %s %s\n", id, firstName, lastName, country_name, age, virus_name, vacStatus, date);
-          printf("CITIZEN HAS A NEGATIVE VACCINATION RECORD FOR THIS VIRUS\n\n");
-          continue;
-        }
-        possibleDupe = lookup_in_virus_vaccinated_for_list(virus, atoi(id));
-        if(possibleDupe != NULL){
-          // Ignoring duplicate case where both records for same citizen and virus
-          // mention that the citizen is vaccinated for the virus but the records
-          // have different vaccination dates
-          printf("ERROR IN RECORD %s %s %s %s %s %s %s %s\n", id, firstName, lastName, country_name, age, virus_name, vacStatus, date);
-          printf("CITIZEN ALREADY VACCINATED ON %s\n\n", possibleDupe->vaccinationDate);          
-          continue;
-        }
+        // Assuming there are no duplicates, we only need to add this person to the bloom filter and vaccinated for list
         insert_in_virus_bloomFilter(virus, id);
         insert_in_vaccinated_for_list(virus, atoi(id), date, citizen);
         pthread_mutex_unlock(dataStructAccs);

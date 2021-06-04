@@ -2,7 +2,7 @@ FLAGS = -g -c
 MONITORS = -m 3
 SOCKBUFSIZE = -b 10
 CYCLICBUFSIZE = -c 10
-BFSIZE = -s 10
+BFSIZE = -s 100000
 INPUTDIR = -i testNoDupes
 NUMTHREADS = -t 10
 DEBUGOPTS = --trace-children=yes --track-origins=yes
