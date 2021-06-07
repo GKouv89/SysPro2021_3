@@ -72,8 +72,8 @@ int main(int argc, char *argv[]){
 					return 1;
 		}    
 	}
-    // All children take the same port number, 0.
-    // This is so the port can be autoselected.
+    // Always starting with port 7777 and incrementing for
+    // each child.
     constArgs[2] = malloc(6*sizeof(char));
     int nextPortAvailable = 7777;
     sprintf(constArgs[2], "%d", nextPortAvailable);
