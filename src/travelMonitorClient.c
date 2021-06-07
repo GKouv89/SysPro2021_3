@@ -291,28 +291,28 @@ int main(int argc, char *argv[]){
             }else{
                 printf("Bad arguments to /searchVaccinationStatus. Try again.\n");
             }
-        // }else if(strcmp(command_name, "/travelStats") == 0){
-        //     char *date1 = malloc(11*sizeof(char));
-        //     char *date2 = malloc(11*sizeof(char));
-        //     if(sscanf(rest, "%s %s %s %s", virusName, date1, date2, countryTo) == 4){
-        //         if(dateFormatValidity(date1) == -1 || dateFormatValidity(date2) == -1){
-        //             printf("Invalid date format. Try again.\n");
-        //         }else{
-        //             // Checking specifically for countryTo
-        //             travelStats(virusRequest_map, virusName, date1, date2, countryTo, 1);
-        //         }
-        //     }else if(sscanf(rest, "%s %s %s", virusName, date1, date2) == 3){
-        //         if(dateFormatValidity(date1) == -1 || dateFormatValidity(date2) == -1){
-        //             printf("Invalid date format. Try again.\n");
-        //         }else{
-        //             // Checking for all countries
-        //             travelStats(virusRequest_map, virusName, date1, date2, NULL, 0);
-        //         }
-        //     }else{
-        //         printf("Bad arguments to /travelStats. Try again.\n");
-        //     }
-        //     free(date1);
-        //     free(date2);
+        }else if(strcmp(command_name, "/travelStats") == 0){
+            char *date1 = malloc(11*sizeof(char));
+            char *date2 = malloc(11*sizeof(char));
+            if(sscanf(rest, "%s %s %s %s", virusName, date1, date2, countryTo) == 4){
+                if(dateFormatValidity(date1) == -1 || dateFormatValidity(date2) == -1){
+                    printf("Invalid date format. Try again.\n");
+                }else{
+                    // Checking specifically for countryTo
+                    travelStats(virusRequest_map, virusName, date1, date2, countryTo, 1);
+                }
+            }else if(sscanf(rest, "%s %s %s", virusName, date1, date2) == 3){
+                if(dateFormatValidity(date1) == -1 || dateFormatValidity(date2) == -1){
+                    printf("Invalid date format. Try again.\n");
+                }else{
+                    // Checking for all countries
+                    travelStats(virusRequest_map, virusName, date1, date2, NULL, 0);
+                }
+            }else{
+                printf("Bad arguments to /travelStats. Try again.\n");
+            }
+            free(date1);
+            free(date2);
         }else{
             printf("Unknown command. Try again.\n");
         }

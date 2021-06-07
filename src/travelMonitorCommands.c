@@ -297,3 +297,23 @@ void addVaccinationRecords(hashMap *country_map, hashMap *setOfBFs_map, char *in
   printf("Ready to accept more requests.\n");
   free(command); free(pipeWriteBuffer);
 }
+
+void travelStats(hashMap *virusRequest_map, char *virusName, char *date1, char *date2, char *countryTo, int mode){
+  virusRequest *vr = (virusRequest *) find_node(virusRequest_map, virusName);
+  requests reqs = {0, 0, 0};
+  if(vr == NULL){
+    printf("No such virus: %s. Try again.\n", virusName);
+  }else{
+    switch(mode){
+      case 0: gatherStatistics(vr, date1, date2, NULL, mode, &reqs);
+              break;
+      case 1: gatherStatistics(vr, date1, date2, countryTo, mode, &reqs);
+              break;
+      default:printf("Invalid function mode.\n");
+              break;
+    }
+    printf("TOTAL REQUESTS: %d\n", reqs.total);
+    printf("ACCEPTED: %d\n", reqs.accepted);
+    printf("REJECTED: %d\n", reqs.rejected);
+  }
+}
