@@ -86,6 +86,7 @@ void travelRequest(hashMap *setOfBFs_map, hashMap *country_map, hashMap *virusRe
             request_length = strlen(request);
             if(request_length == 2){
                 printf("REQUEST REJECTED - YOU ARE NOT VACCINATED\n");
+                rejectNamedRequest(nreq);
                 reqs->rejected++;
                 reqs->total++;
             }else if(strcmp(request, "BAD COUNTRY") == 0){

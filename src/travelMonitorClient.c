@@ -145,7 +145,9 @@ int main(int argc, char *argv[]){
                 continue;
             }
         }
-        // Preparing argument array for new child.
+        // Preparing argument array for new child, a.k.a. 
+        // the first few arguments that are constant are done but
+        // now the country paths must be added.
         char **temp = realloc(argArray, (12 + countriesLength)*sizeof(char *));
         assert(temp != NULL);
         argArray = temp;
@@ -220,7 +222,6 @@ int main(int argc, char *argv[]){
 					// We will now read from the monitor process no. k
 					receiveBloomFiltersFromChild(setOfBFs_map, sock_ids[k], k, socketBufferSize, numMonitors, sizeOfBloom);
 					// Increasing number of children we have received filters from
-                    printf("Received bloom filters from child no %d.\n", k);
 					i++;
 					// We don't expect any more 'traffic' from this child.
 					read_bloom_descs[k] = 0;

@@ -70,7 +70,7 @@ int main(int argc, char *argv[]){
         close(newsock_id);
         exit(1);
     }
-    printf("Accepted, about to write...\n");
+    // printf("Accepted, about to write...\n");
 
     ///////////////////////////////////////////////////////////////
 	hashMap *country_map, *virus_map, *citizen_map;
@@ -139,11 +139,9 @@ int main(int argc, char *argv[]){
 	struct dirent *curr_subdir;
 	FILE *curr_file;
 	Country *country;
-    printf("Files produced: %d\n", filesProduced);
     while(filesConsumed != filesProduced){
         pthread_cond_wait(&allfiles_consumed, &filesDone);
     }
-    printf("Bloom filters calculated\n");
   	send_bloomFilters(virus_map, newsock_id, socketBufferSize);
     // Resetting counters in case of addition of new records.
     filesProduced = 0;
@@ -217,11 +215,9 @@ int main(int argc, char *argv[]){
                         little_folder_name = strtok_r(NULL, "/", &rest);
                         Country *country = (Country *) find_node(country_map, little_folder_name);
                         addNewRecords(country, countryDir, cB, &cond_nonempty, &cond_nonfull, &mtx, &filesProduced);
-                        printf("Files produced: %d\n", filesProduced);
                         while(filesConsumed != filesProduced){
                             pthread_cond_wait(&allfiles_consumed, &filesDone);
                         }
-                        printf("Bloom filters REcalculated\n");
                         send_bloomFilters(virus_map, newsock_id, socketBufferSize);
                         filesProduced = 0;
                         filesConsumed = 0;
@@ -233,7 +229,7 @@ int main(int argc, char *argv[]){
 			}
 		}
 	}
-
+    // Write END in cyclicBuffer once for each thread that has been created
     killThreadPool(numThreads, cB, &cond_nonempty, &cond_nonfull, &mtx);
     
     for(int i = 0; i < numThreads; i++){

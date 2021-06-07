@@ -14,7 +14,6 @@ void checkSkiplist(hashMap *virus_map, char *citizenID, char *virusName, int buf
   listNode *check_for_vacc = lookup_in_virus_vaccinated_for_list(virus, atoi(citizenID));
   char *answer = malloc(255*sizeof(char));
   if(check_for_vacc != NULL){
-    printf("Citizen vaccinated on %s\n", check_for_vacc->vaccinationDate);
     sprintf(answer, "YES %s", check_for_vacc->vaccinationDate);
   }else{
     sprintf(answer, "NO");

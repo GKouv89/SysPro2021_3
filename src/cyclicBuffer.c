@@ -26,7 +26,6 @@ void create_cyclicBuffer(cyclicBuffer **cB, int cyclicBufferSize){
 void place(cyclicBuffer *cB, char *path, pthread_mutex_t *mtx, pthread_cond_t *cond_nonfull){
     pthread_mutex_lock(mtx);
     while(cB->count >= cB->cyclicBufferSize) {
-        // printf(">> Found Buffer Full \n");
         pthread_cond_wait(cond_nonfull, mtx);
     }
     cB->end = (cB->end + 1) % cB->cyclicBufferSize;
@@ -44,7 +43,6 @@ void obtain(cyclicBuffer *cB, pthread_mutex_t *mtx, pthread_cond_t *cond_nonempt
     char *file_name = malloc(512*sizeof(char));
     pthread_mutex_lock(mtx);
     while (cB->count <= 0) {
-        // printf(">> Found Buffer Empty \n");
         pthread_cond_wait(cond_nonempty, mtx);
     }
     strcpy(file_name, cB->filePaths[cB->start]);
@@ -75,13 +73,10 @@ void obtain(cyclicBuffer *cB, pthread_mutex_t *mtx, pthread_cond_t *cond_nonempt
     // access to the bloom filters and skiplists.
     fp = fopen(file_name, "r");
     assert(file_name != NULL);
-    // printf("About to parse: %s\n", file_name);
     inputFileParsing(country_map, citizen_map, virus_map, fp, sizeOfBloom, dataStructAccs);
-    // printf("Done parsing: %s\n", file_name);
     pthread_mutex_lock(dataStructAccs);
     readCountryFile(country);
     (*filesConsumed)++;
-    printf("Files consumed: %d\n", *filesConsumed);
     pthread_mutex_unlock(dataStructAccs);
     assert(fclose(fp) == 0);
     free(file_name);
@@ -100,7 +95,6 @@ void producer(char **argv, cyclicBuffer *cB, pthread_cond_t *cond_nonempty, pthr
 				continue;
 			}
             strcpy(full_file_name, argv[i]);
-            // strcat(full_file_name, "/");
             strcat(full_file_name, curr_subdir->d_name);
             place(cB, full_file_name, mtx, cond_nonfull);
             (*filesProduced)++;
@@ -127,7 +121,6 @@ void addNewRecords(Country *country, char *folderName, cyclicBuffer *cB, pthread
             break;
         }
         place(cB, fileName, mtx, cond_nonfull);
-        printf("Produced: %s\n", fileName);
         readCountryFile(country);
         assert(fclose(fp) == 0);
         (*filesProduced)++;
